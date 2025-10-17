@@ -17,6 +17,7 @@ class Questao extends Model
         'user_id',
         'enunciado',
         'nivel',
+        'nivel_dificuldade',
         'explicacao',
         'imagem_url',
         'imagem_gerada_url',

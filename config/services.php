@@ -41,4 +41,12 @@ return [
         'max_tokens' => env('OPENAI_MAX_TOKENS', 2000),
     ],
 
+    'validapay' => [
+        'auth_url' => env('VALIDAPAY_AUTH_URL', 'https://auth.validapay.com.br'),
+        'api_url' => env('VALIDAPAY_API_URL', 'https://api.validapay.com.br'),
+        'client_id' => env('VALIDAPAY_CLIENT_ID'),
+        'client_secret' => env('VALIDAPAY_CLIENT_SECRET'),
+        'account_number' => env('VALIDAPAY_ACCOUNT_NUMBER'), // Sua chave PIX
+    ],
+
 ];

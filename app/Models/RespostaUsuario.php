@@ -14,6 +14,7 @@ class RespostaUsuario extends Model
         'questao_id',
         'alternativa_id',
         'simulado_id',
+        'tentativa_id',
         'correta',
         'tempo_resposta',
     ];
@@ -40,5 +41,10 @@ class RespostaUsuario extends Model
     public function simulado(): BelongsTo
     {
         return $this->belongsTo(Simulado::class);
+    }
+
+    public function tentativa(): BelongsTo
+    {
+        return $this->belongsTo(SimuladoTentativa::class, 'tentativa_id');
     }
 }

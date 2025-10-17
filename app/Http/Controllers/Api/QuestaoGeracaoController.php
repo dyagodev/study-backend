@@ -7,16 +7,19 @@ use App\Models\Alternativa;
 use App\Models\Questao;
 use App\Models\Tema;
 use App\Services\AIService;
+use App\Services\CreditoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class QuestaoGeracaoController extends Controller
 {
     protected $aiService;
+    protected $creditoService;
 
-    public function __construct(AIService $aiService)
+    public function __construct(AIService $aiService, CreditoService $creditoService)
     {
         $this->aiService = $aiService;
+        $this->creditoService = $creditoService;
     }
 
     public function gerarPorTema(Request $request)
@@ -25,12 +28,35 @@ class QuestaoGeracaoController extends Controller
             'tema_id' => 'required|exists:temas,id',
             'assunto' => 'required|string|max:255',
             'quantidade' => 'sometimes|integer|min:1|max:10',
+            'nivel' => 'sometimes|in:facil,medio,dificil,muito_dificil',
         ]);
 
+        $userId = $request->user()->id;
         $tema = Tema::findOrFail($request->tema_id);
+
+        // Verificar se o tema está disponível para o usuário
+        if ($tema->user_id && $tema->user_id !== $userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tema não encontrado ou não disponível',
+            ], 404);
+        }
+
         $assunto = $request->assunto;
         $quantidade = $request->quantidade ?? 5;
-        $nivel = 'concurso'; // Fixado como concurso
+        $nivel = $request->nivel ?? 'medio'; // Default: médio
+
+        // Calcular custo e verificar créditos
+        $custo = $this->creditoService->calcularCustoQuestoes('simples', $quantidade);
+        
+        if (!$request->user()->temCreditos($custo)) {
+            return response()->json([
+                'success' => false,
+                'message' => "Créditos insuficientes. Necessário: {$custo} créditos. Saldo atual: {$request->user()->creditos}",
+                'custo_necessario' => $custo,
+                'saldo_atual' => $request->user()->creditos,
+            ], 402);
+        }
 
         try {
             $questoesGeradas = $this->aiService->gerarQuestoesPorTema(
@@ -49,10 +75,21 @@ class QuestaoGeracaoController extends Controller
                 $nivel
             );
 
+            // Debitar créditos após geração bem-sucedida
+            $this->creditoService->debitar(
+                $request->user(),
+                $custo,
+                "Geração de {$quantidade} questão(ões) - Tema: {$tema->nome}",
+                'questao',
+                null
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Questões geradas com sucesso',
                 'data' => $questoesSalvas,
+                'custo' => $custo,
+                'saldo_restante' => $request->user()->fresh()->creditos,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -69,16 +106,41 @@ class QuestaoGeracaoController extends Controller
             'assunto' => 'required|string|max:255',
             'quantidade' => 'sometimes|integer|min:1|max:5',
             'tema_id' => 'required|exists:temas,id',
+            'nivel' => 'sometimes|in:facil,medio,dificil,muito_dificil',
         ]);
 
+        $userId = $request->user()->id;
         $quantidade = $request->quantidade ?? 3;
         $tema = Tema::findOrFail($request->tema_id);
+
+        // Verificar se o tema está disponível para o usuário
+        if ($tema->user_id && $tema->user_id !== $userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tema não encontrado ou não disponível',
+            ], 404);
+        }
+
         $assunto = $request->assunto;
+        $nivel = $request->nivel ?? 'medio'; // Default: médio
+
+        // Calcular custo e verificar créditos (variação)
+        $custo = $this->creditoService->calcularCustoQuestoes('variacao', $quantidade);
+        
+        if (!$request->user()->temCreditos($custo)) {
+            return response()->json([
+                'success' => false,
+                'message' => "Créditos insuficientes. Necessário: {$custo} créditos. Saldo atual: {$request->user()->creditos}",
+                'custo_necessario' => $custo,
+                'saldo_atual' => $request->user()->creditos,
+            ], 402);
+        }
 
         try {
             $questoesGeradas = $this->aiService->gerarVariacoesQuestao(
                 $request->questao_exemplo,
-                $quantidade
+                $quantidade,
+                $nivel
             );
 
             $questoesSalvas = $this->salvarQuestoes(
@@ -87,13 +149,24 @@ class QuestaoGeracaoController extends Controller
                 $assunto,
                 $request->user()->id,
                 'ia_variacao',
-                'concurso'
+                $nivel
+            );
+
+            // Debitar créditos após geração bem-sucedida
+            $this->creditoService->debitar(
+                $request->user(),
+                $custo,
+                "Geração de {$quantidade} variação(ões) de questão",
+                'questao',
+                null
             );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Variações geradas com sucesso',
                 'data' => $questoesSalvas,
+                'custo' => $custo,
+                'saldo_restante' => $request->user()->fresh()->creditos,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -110,10 +183,33 @@ class QuestaoGeracaoController extends Controller
             'tema_id' => 'required|exists:temas,id',
             'assunto' => 'required|string|max:255',
             'contexto' => 'nullable|string',
+            'nivel' => 'sometimes|in:facil,medio,dificil,muito_dificil',
         ]);
 
+        $userId = $request->user()->id;
         $tema = Tema::findOrFail($request->tema_id);
+
+        // Verificar se o tema está disponível para o usuário
+        if ($tema->user_id && $tema->user_id !== $userId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tema não encontrado ou não disponível',
+            ], 404);
+        }
         $assunto = $request->assunto;
+        $nivel = $request->nivel ?? 'medio'; // Default: médio
+
+        // Calcular custo e verificar créditos (por imagem)
+        $custo = $this->creditoService->calcularCustoQuestoes('imagem', 1);
+        
+        if (!$request->user()->temCreditos($custo)) {
+            return response()->json([
+                'success' => false,
+                'message' => "Créditos insuficientes. Necessário: {$custo} créditos. Saldo atual: {$request->user()->creditos}",
+                'custo_necessario' => $custo,
+                'saldo_atual' => $request->user()->creditos,
+            ], 402);
+        }
 
         try {
             // Converter imagem para base64
@@ -122,7 +218,8 @@ class QuestaoGeracaoController extends Controller
 
             $questoesGeradas = $this->aiService->gerarQuestoesPorImagem(
                 $imagemBase64,
-                $request->contexto ?? ''
+                $request->contexto ?? '',
+                $nivel
             );
 
             // Salvar imagem
@@ -134,14 +231,25 @@ class QuestaoGeracaoController extends Controller
                 $assunto,
                 $request->user()->id,
                 'ia_imagem',
-                'concurso',
+                $nivel,
                 $imagemPath
+            );
+
+            // Debitar créditos após geração bem-sucedida
+            $this->creditoService->debitar(
+                $request->user(),
+                $custo,
+                "Geração de questão por imagem - Tema: {$tema->nome}",
+                'questao',
+                null
             );
 
             return response()->json([
                 'success' => true,
                 'message' => 'Questões geradas a partir da imagem com sucesso',
                 'data' => $questoesSalvas,
+                'custo' => $custo,
+                'saldo_restante' => $request->user()->fresh()->creditos,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -157,7 +265,7 @@ class QuestaoGeracaoController extends Controller
         string $assunto,
         int $userId,
         string $tipoGeracao,
-        string $nivel = 'concurso',
+        string $nivelDificuldade = 'medio',
         ?string $imagemUrl = null
     ): array {
         $questoesSalvas = [];
@@ -170,7 +278,8 @@ class QuestaoGeracaoController extends Controller
                     'assunto' => $assunto,
                     'user_id' => $userId,
                     'enunciado' => $questaoData['enunciado'],
-                    'nivel' => $nivel,
+                    'nivel' => 'concurso', // Todas são de concurso
+                    'nivel_dificuldade' => $nivelDificuldade, // facil, medio, dificil, muito_dificil
                     'explicacao' => $questaoData['explicacao'] ?? null,
                     'tipo_geracao' => $tipoGeracao,
                     'imagem_url' => $imagemUrl,  // Apenas imagem enviada pelo usuário

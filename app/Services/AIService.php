@@ -32,9 +32,9 @@ class AIService
         }
     }
 
-    public function gerarVariacoesQuestao(string $questaoExemplo, int $quantidade = 3)
+    public function gerarVariacoesQuestao(string $questaoExemplo, int $quantidade = 3, string $nivel = 'medio')
     {
-        $prompt = $this->construirPromptVariacao($questaoExemplo, $quantidade);
+        $prompt = $this->construirPromptVariacao($questaoExemplo, $quantidade, $nivel);
         
         try {
             $response = $this->chamarOpenAI($prompt);
@@ -45,9 +45,9 @@ class AIService
         }
     }
 
-    public function gerarQuestoesPorImagem(string $imagemBase64, string $contexto = '')
+    public function gerarQuestoesPorImagem(string $imagemBase64, string $contexto = '', string $nivel = 'medio')
     {
-        $prompt = $this->construirPromptImagem($contexto);
+        $prompt = $this->construirPromptImagem($contexto, $nivel);
         
         try {
             $response = $this->chamarOpenAIComImagem($prompt, $imagemBase64);
@@ -61,29 +61,40 @@ class AIService
     protected function construirPromptPorTema(string $tema, string $assunto, int $quantidade, string $nivel): string
     {
         $nivelDescricao = match($nivel) {
-            'facil' => 'fácil, adequadas para iniciantes',
-            'medio' => 'médio, adequadas para estudantes intermediários',
-            'dificil' => 'difícil, adequadas para estudantes avançados',
-            'concurso' => 'de CONCURSO PÚBLICO, com alto nível de complexidade, exigindo conhecimento profundo e raciocínio avançado',
-            default => 'de concurso público',
+            'facil' => 'FÁCIL',
+            'medio' => 'MÉDIO',
+            'dificil' => 'DIFÍCIL',
+            'muito_dificil' => 'MUITO DIFÍCIL',
+            default => 'MÉDIO',
         };
 
-        return "Você é um especialista em educação e elaboração de questões para CONCURSOS PÚBLICOS BRASILEIROS. Crie {$quantidade} questões de múltipla escolha sobre o tema '{$tema}', especificamente sobre o assunto '{$assunto}' com nível de dificuldade {$nivelDescricao}.
+        return "Você é um especialista em educação e elaboração de questões para CONCURSOS PÚBLICOS BRASILEIROS.
+
+Crie {$quantidade} questões de múltipla escolha do tipo CONCURSO PÚBLICO sobre o tema '{$tema}', especificamente sobre o assunto '{$assunto}'.
+
+**NÍVEL DE DIFICULDADE EXIGIDO: {$nivelDescricao}**
+
+Todas as questões devem ser no estilo de CONCURSO PÚBLICO BRASILEIRO, porém ajustadas ao nível de dificuldade {$nivelDescricao}:
+
+- **FÁCIL**: Questões de concurso que abordam conceitos básicos e diretos, exigindo conhecimento fundamental sobre o assunto
+- **MÉDIO**: Questões de concurso que exigem interpretação e aplicação de conceitos, com raciocínio moderado
+- **DIFÍCIL**: Questões de concurso complexas que exigem análise crítica, correlação de múltiplos conceitos e raciocínio avançado
+- **MUITO DIFÍCIL**: Questões de concurso de alta complexidade, exigindo conhecimento profundo, interpretação de casos complexos e raciocínio expert
 
 Para cada questão, forneça:
-1. Um enunciado claro e objetivo
+1. Um enunciado claro e objetivo no estilo de concurso público
 2. 4 alternativas de resposta
 3. Indique qual alternativa é a correta
 4. Uma breve explicação da resposta correta
 
 IMPORTANTE: 
-- As questões devem ser NÍVEL CONCURSO PÚBLICO - complexas, que exijam raciocínio crítico e conhecimento aprofundado
+- TODAS as questões devem ser do tipo CONCURSO PÚBLICO
+- O nível de dificuldade deve ser EXATAMENTE {$nivelDescricao}
 - NÃO crie questões que dependam de imagens, gráficos, figuras ou diagramas
 - Todas as questões devem ser compreensíveis apenas com texto
 - Evite usar frases como \"Observe a figura\", \"Analise o gráfico\", \"De acordo com a imagem\", etc.
 - Descreva todas as informações necessárias diretamente no enunciado
 - Use linguagem formal e técnica apropriada para concursos públicos
-- As questões devem ser desafiadoras e requerem análise crítica
 
 Retorne no formato JSON:
 [
@@ -100,23 +111,39 @@ Retorne no formato JSON:
 ]";
     }
 
-    protected function construirPromptVariacao(string $questaoExemplo, int $quantidade): string
+    protected function construirPromptVariacao(string $questaoExemplo, int $quantidade, string $nivel = 'medio'): string
     {
-        return "Você é um especialista em educação. Com base na seguinte questão de exemplo, crie {$quantidade} questões similares, mas com variações no conteúdo, mantendo o mesmo nível de dificuldade e formato.
+        $nivelDescricao = match($nivel) {
+            'facil' => 'FÁCIL',
+            'medio' => 'MÉDIO',
+            'dificil' => 'DIFÍCIL',
+            'muito_dificil' => 'MUITO DIFÍCIL',
+            default => 'MÉDIO',
+        };
+
+        return "Você é um especialista em educação e elaboração de questões para CONCURSOS PÚBLICOS BRASILEIROS.
+
+Com base na seguinte questão de exemplo, crie {$quantidade} questões similares no estilo CONCURSO PÚBLICO, mas com variações no conteúdo.
+
+**NÍVEL DE DIFICULDADE EXIGIDO: {$nivelDescricao}**
 
 Questão de exemplo:
 {$questaoExemplo}
 
 Para cada questão, forneça:
-1. Um enunciado claro e objetivo
+1. Um enunciado claro e objetivo no estilo de concurso público
 2. 4 alternativas de resposta
 3. Indique qual alternativa é a correta
 4. Uma breve explicação da resposta correta
 
 IMPORTANTE: 
+- TODAS as questões devem ser do tipo CONCURSO PÚBLICO
+- O nível de dificuldade deve ser EXATAMENTE {$nivelDescricao}
+- Mantenha o formato e estilo da questão original
 - NÃO crie questões que dependam de imagens, gráficos, figuras ou diagramas
 - Todas as questões devem ser compreensíveis apenas com texto
 - Descreva todas as informações necessárias diretamente no enunciado
+- Use linguagem formal e técnica apropriada para concursos públicos
 
 Retorne no formato JSON:
 [
@@ -133,19 +160,35 @@ Retorne no formato JSON:
 ]";
     }
 
-    protected function construirPromptImagem(string $contexto): string
+    protected function construirPromptImagem(string $contexto, string $nivel = 'medio'): string
     {
         $contextoTexto = $contexto ? "Contexto adicional: {$contexto}\n\n" : '';
+        
+        $nivelDescricao = match($nivel) {
+            'facil' => 'FÁCIL',
+            'medio' => 'MÉDIO',
+            'dificil' => 'DIFÍCIL',
+            'muito_dificil' => 'MUITO DIFÍCIL',
+            default => 'MÉDIO',
+        };
 
-        return "{$contextoTexto}Analise a imagem fornecida e crie 3 questões de múltipla escolha baseadas no conteúdo visual.
+        return "Você é um especialista em educação e elaboração de questões para CONCURSOS PÚBLICOS BRASILEIROS.
+
+{$contextoTexto}Analise a imagem fornecida e crie 3 questões de múltipla escolha no estilo CONCURSO PÚBLICO baseadas no conteúdo visual.
+
+**NÍVEL DE DIFICULDADE EXIGIDO: {$nivelDescricao}**
 
 Para cada questão, forneça:
-1. Um enunciado claro relacionado à imagem - descreva textualmente o que está na imagem
+1. Um enunciado claro relacionado à imagem no estilo de concurso público - descreva textualmente o que está na imagem
 2. 4 alternativas de resposta
 3. Indique qual alternativa é a correta
 4. Uma breve explicação da resposta correta
 
-IMPORTANTE: Descreva completamente o conteúdo da imagem no enunciado, pois o usuário não terá acesso à imagem original.
+IMPORTANTE: 
+- TODAS as questões devem ser do tipo CONCURSO PÚBLICO
+- O nível de dificuldade deve ser EXATAMENTE {$nivelDescricao}
+- Descreva completamente o conteúdo da imagem no enunciado, pois o usuário não terá acesso à imagem original
+- Use linguagem formal e técnica apropriada para concursos públicos
 
 Retorne no formato JSON:
 [

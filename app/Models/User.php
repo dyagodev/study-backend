@@ -24,6 +24,9 @@ class User extends Authenticatable
         'password',
         'role',
         'avatar',
+        'creditos',
+        'creditos_semanais',
+        'ultima_renovacao',
     ];
 
     /**
@@ -46,6 +49,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'ultima_renovacao' => 'datetime',
         ];
     }
 
@@ -69,6 +73,11 @@ class User extends Authenticatable
         return $this->hasMany(RespostaUsuario::class);
     }
 
+    public function transacoesCreditos()
+    {
+        return $this->hasMany(TransacaoCredito::class);
+    }
+
     public function isProfessor(): bool
     {
         return $this->role === 'professor';
@@ -77,5 +86,63 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
+    }
+
+    /**
+     * Verifica se o usuário tem créditos suficientes
+     */
+    public function temCreditos(int $quantidade): bool
+    {
+        $this->verificarERenovarCreditos();
+        return $this->creditos >= $quantidade;
+    }
+
+    /**
+     * Verifica se passou 1 semana e renova os créditos automaticamente
+     */
+    public function verificarERenovarCreditos(): void
+    {
+        // Se nunca foi renovado, define agora
+        if (!$this->ultima_renovacao) {
+            $this->ultima_renovacao = now();
+            $this->save();
+            return;
+        }
+
+        // Verifica se passou 1 semana (7 dias)
+        $diasDesdeRenovacao = $this->ultima_renovacao->diffInDays(now());
+        
+        if ($diasDesdeRenovacao >= 7) {
+            $this->creditos = $this->creditos_semanais;
+            $this->ultima_renovacao = now();
+            $this->save();
+        }
+    }
+
+    /**
+     * Retorna quantos dias faltam para renovação
+     */
+    public function diasParaRenovacao(): int
+    {
+        if (!$this->ultima_renovacao) {
+            return 0;
+        }
+
+        $diasDesdeRenovacao = $this->ultima_renovacao->diffInDays(now());
+        $diasRestantes = 7 - $diasDesdeRenovacao;
+        
+        return max(0, $diasRestantes);
+    }
+
+    /**
+     * Retorna data da próxima renovação
+     */
+    public function proximaRenovacao(): ?\Carbon\Carbon
+    {
+        if (!$this->ultima_renovacao) {
+            return null;
+        }
+
+        return $this->ultima_renovacao->copy()->addDays(7);
     }
 }

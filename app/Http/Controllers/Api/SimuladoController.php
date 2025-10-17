@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\RespostaUsuario;
 use App\Models\Simulado;
+use App\Models\SimuladoTentativa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -184,13 +185,37 @@ class SimuladoController extends Controller
             'respostas.*.questao_id' => 'required|exists:questoes,id',
             'respostas.*.alternativa_id' => 'required|exists:alternativas,id',
             'respostas.*.tempo_resposta' => 'nullable|integer',
+            'data_inicio' => 'nullable|date',
         ]);
 
         DB::beginTransaction();
         try {
             $acertos = 0;
             $totalQuestoes = count($request->respostas);
+            $tempoTotal = 0;
 
+            // Calcular número da próxima tentativa
+            $ultimaTentativa = SimuladoTentativa::where('simulado_id', $simulado->id)
+                ->where('user_id', $request->user()->id)
+                ->max('numero_tentativa');
+            
+            $numeroTentativa = ($ultimaTentativa ?? 0) + 1;
+
+            // Criar registro da tentativa
+            $tentativa = SimuladoTentativa::create([
+                'simulado_id' => $simulado->id,
+                'user_id' => $request->user()->id,
+                'numero_tentativa' => $numeroTentativa,
+                'total_questoes' => $totalQuestoes,
+                'acertos' => 0, // Será atualizado depois
+                'erros' => 0,
+                'percentual_acerto' => 0,
+                'tempo_total' => 0,
+                'data_inicio' => $request->data_inicio ?? now(),
+                'data_fim' => now(),
+            ]);
+
+            // Registrar cada resposta
             foreach ($request->respostas as $resposta) {
                 // Verificar se a alternativa está correta
                 $alternativa = \App\Models\Alternativa::find($resposta['alternativa_id']);
@@ -200,27 +225,42 @@ class SimuladoController extends Controller
                     $acertos++;
                 }
 
+                $tempoResposta = $resposta['tempo_resposta'] ?? 0;
+                $tempoTotal += $tempoResposta;
+
                 RespostaUsuario::create([
                     'user_id' => $request->user()->id,
                     'questao_id' => $resposta['questao_id'],
                     'alternativa_id' => $resposta['alternativa_id'],
                     'simulado_id' => $simulado->id,
+                    'tentativa_id' => $tentativa->id,
                     'correta' => $correta,
-                    'tempo_resposta' => $resposta['tempo_resposta'] ?? null,
+                    'tempo_resposta' => $tempoResposta,
                 ]);
             }
 
-            DB::commit();
-
             $percentualAcerto = ($acertos / $totalQuestoes) * 100;
+
+            // Atualizar estatísticas da tentativa
+            $tentativa->update([
+                'acertos' => $acertos,
+                'erros' => $totalQuestoes - $acertos,
+                'percentual_acerto' => $percentualAcerto,
+                'tempo_total' => $tempoTotal,
+            ]);
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Respostas registradas com sucesso',
                 'data' => [
+                    'tentativa_id' => $tentativa->id,
+                    'numero_tentativa' => $numeroTentativa,
                     'acertos' => $acertos,
                     'total_questoes' => $totalQuestoes,
                     'percentual_acerto' => round($percentualAcerto, 2),
+                    'tempo_total' => $tempoTotal,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -234,44 +274,36 @@ class SimuladoController extends Controller
 
     public function resultado(Simulado $simulado, Request $request)
     {
-        // Buscar a data/hora da resposta mais recente
-        $ultimaResposta = RespostaUsuario::where('simulado_id', $simulado->id)
+        // Buscar a última tentativa do usuário
+        $ultimaTentativa = SimuladoTentativa::where('simulado_id', $simulado->id)
             ->where('user_id', $request->user()->id)
-            ->orderBy('created_at', 'desc')
+            ->orderBy('numero_tentativa', 'desc')
             ->first();
 
-        if (!$ultimaResposta) {
+        if (!$ultimaTentativa) {
             return response()->json([
                 'success' => false,
                 'message' => 'Você ainda não respondeu este simulado',
             ], 404);
         }
 
-        // Buscar apenas respostas da última tentativa
-        // Considera última tentativa = respostas nos últimos 30 minutos a partir da resposta mais recente
-        $dataLimite = $ultimaResposta->created_at->copy()->subMinutes(30);
-        
-        $respostas = RespostaUsuario::where('simulado_id', $simulado->id)
-            ->where('user_id', $request->user()->id)
-            ->where('created_at', '>=', $dataLimite)
+        // Buscar respostas da última tentativa com relacionamentos
+        $respostas = RespostaUsuario::where('tentativa_id', $ultimaTentativa->id)
             ->with(['questao.alternativas', 'alternativa'])
             ->orderBy('created_at', 'asc')
             ->get();
 
-        $totalQuestoes = $respostas->count();
-        $acertos = $respostas->where('correta', true)->count();
-        $erros = $totalQuestoes - $acertos;
-        $percentualAcerto = $totalQuestoes > 0 ? ($acertos / $totalQuestoes) * 100 : 0;
-
         $detalhesRespostas = $respostas->map(function ($resposta) use ($simulado) {
+            $alternativaCorreta = $resposta->questao->alternativas->where('correta', true)->first();
+            
             return [
                 'questao_id' => $resposta->questao_id,
                 'questao_enunciado' => $resposta->questao->enunciado,
+                'alternativa_escolhida_id' => $resposta->alternativa_id,
                 'alternativa_escolhida' => $resposta->alternativa->texto ?? 'Não respondida',
                 'correta' => $resposta->correta,
-                'alternativa_correta' => $simulado->mostrar_gabarito 
-                    ? $resposta->questao->alternativas->where('correta', true)->first()->texto 
-                    : null,
+                'alternativa_correta_id' => $simulado->mostrar_gabarito ? $alternativaCorreta->id : null,
+                'alternativa_correta' => $simulado->mostrar_gabarito ? $alternativaCorreta->texto : null,
                 'explicacao' => $simulado->mostrar_gabarito ? $resposta->questao->explicacao : null,
                 'tempo_resposta' => $resposta->tempo_resposta,
             ];
@@ -280,15 +312,19 @@ class SimuladoController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'simulado' => $simulado->only(['id', 'titulo', 'descricao']),
+                'simulado' => $simulado->only(['id', 'titulo', 'descricao', 'mostrar_gabarito']),
                 'tentativa' => [
-                    'data' => $ultimaResposta->created_at->format('Y-m-d H:i:s'),
+                    'id' => $ultimaTentativa->id,
+                    'numero' => $ultimaTentativa->numero_tentativa,
+                    'data_inicio' => $ultimaTentativa->data_inicio->format('Y-m-d H:i:s'),
+                    'data_fim' => $ultimaTentativa->data_fim->format('Y-m-d H:i:s'),
+                    'tempo_total' => $ultimaTentativa->tempo_total,
                 ],
                 'estatisticas' => [
-                    'total_questoes' => $totalQuestoes,
-                    'acertos' => $acertos,
-                    'erros' => $erros,
-                    'percentual_acerto' => round($percentualAcerto, 2),
+                    'total_questoes' => $ultimaTentativa->total_questoes,
+                    'acertos' => $ultimaTentativa->acertos,
+                    'erros' => $ultimaTentativa->erros,
+                    'percentual_acerto' => $ultimaTentativa->percentual_acerto,
                 ],
                 'respostas' => $detalhesRespostas,
             ],
@@ -297,64 +333,110 @@ class SimuladoController extends Controller
 
     public function historico(Simulado $simulado, Request $request)
     {
-        // Buscar todas as respostas do usuário para este simulado, ordenadas por data (mais recente primeiro)
-        $todasRespostas = RespostaUsuario::where('simulado_id', $simulado->id)
+        // Buscar todas as tentativas do usuário para este simulado
+        $tentativas = SimuladoTentativa::where('simulado_id', $simulado->id)
             ->where('user_id', $request->user()->id)
-            ->orderBy('created_at', 'desc')
+            ->orderBy('numero_tentativa', 'desc')
             ->get();
 
-        if ($todasRespostas->isEmpty()) {
+        if ($tentativas->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Você ainda não respondeu este simulado',
             ], 404);
         }
 
-        // Agrupar respostas por tentativa
-        // Lógica: Se o gap entre duas respostas consecutivas > 5 minutos, são tentativas diferentes
-        $tentativas = [];
-        $tentativaAtual = 1;
-        $tentativas[$tentativaAtual] = [$todasRespostas[0]]; // Primeira resposta
-
-        for ($i = 1; $i < count($todasRespostas); $i++) {
-            $respostaAtual = $todasRespostas[$i];
-            $respostaAnterior = $todasRespostas[$i - 1];
-            
-            // Calcular diferença de tempo (em segundos) entre respostas consecutivas
-            $diferencaTempo = $respostaAnterior->created_at->timestamp - $respostaAtual->created_at->timestamp;
-            
-            // Se diferença > 5 minutos (300 segundos), é uma tentativa diferente
-            if ($diferencaTempo > 300) {
-                $tentativaAtual++;
-            }
-            
-            $tentativas[$tentativaAtual][] = $respostaAtual;
-        }
-
-        // Processar cada tentativa
-        $historicoTentativas = [];
-        foreach ($tentativas as $numero => $respostasTentativa) {
-            $respostas = collect($respostasTentativa);
-            $totalQuestoes = $respostas->count();
-            $acertos = $respostas->where('correta', true)->count();
-            $percentualAcerto = $totalQuestoes > 0 ? ($acertos / $totalQuestoes) * 100 : 0;
-
-            $historicoTentativas[] = [
-                'tentativa' => $numero,
-                'data' => $respostas->first()->created_at->format('Y-m-d H:i:s'),
-                'total_questoes' => $totalQuestoes,
-                'acertos' => $acertos,
-                'erros' => $totalQuestoes - $acertos,
-                'percentual_acerto' => round($percentualAcerto, 2),
+        // Formatar histórico de tentativas
+        $historicoTentativas = $tentativas->map(function ($tentativa) {
+            return [
+                'tentativa_id' => $tentativa->id,
+                'numero_tentativa' => $tentativa->numero_tentativa,
+                'data_inicio' => $tentativa->data_inicio->format('Y-m-d H:i:s'),
+                'data_fim' => $tentativa->data_fim->format('Y-m-d H:i:s'),
+                'total_questoes' => $tentativa->total_questoes,
+                'acertos' => $tentativa->acertos,
+                'erros' => $tentativa->erros,
+                'percentual_acerto' => $tentativa->percentual_acerto,
+                'tempo_total' => $tentativa->tempo_total,
             ];
-        }
+        });
+
+        // Estatísticas gerais
+        $melhorTentativa = $tentativas->sortByDesc('percentual_acerto')->first();
+        $mediaPercentual = $tentativas->avg('percentual_acerto');
+        $tempoMedio = $tentativas->avg('tempo_total');
 
         return response()->json([
             'success' => true,
             'data' => [
                 'simulado' => $simulado->only(['id', 'titulo', 'descricao']),
-                'total_tentativas' => count($tentativas),
+                'total_tentativas' => $tentativas->count(),
+                'estatisticas_gerais' => [
+                    'melhor_percentual' => round($melhorTentativa->percentual_acerto, 2),
+                    'melhor_tentativa_numero' => $melhorTentativa->numero_tentativa,
+                    'media_percentual' => round($mediaPercentual, 2),
+                    'tempo_medio' => round($tempoMedio, 2),
+                ],
                 'tentativas' => $historicoTentativas,
+            ],
+        ]);
+    }
+
+    public function detalheTentativa(Simulado $simulado, $tentativaId, Request $request)
+    {
+        // Buscar a tentativa específica
+        $tentativa = SimuladoTentativa::where('id', $tentativaId)
+            ->where('simulado_id', $simulado->id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (!$tentativa) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tentativa não encontrada',
+            ], 404);
+        }
+
+        // Buscar respostas da tentativa
+        $respostas = RespostaUsuario::where('tentativa_id', $tentativa->id)
+            ->with(['questao.alternativas', 'alternativa'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $detalhesRespostas = $respostas->map(function ($resposta) use ($simulado) {
+            $alternativaCorreta = $resposta->questao->alternativas->where('correta', true)->first();
+            
+            return [
+                'questao_id' => $resposta->questao_id,
+                'questao_enunciado' => $resposta->questao->enunciado,
+                'alternativa_escolhida_id' => $resposta->alternativa_id,
+                'alternativa_escolhida' => $resposta->alternativa->texto ?? 'Não respondida',
+                'correta' => $resposta->correta,
+                'alternativa_correta_id' => $simulado->mostrar_gabarito ? $alternativaCorreta->id : null,
+                'alternativa_correta' => $simulado->mostrar_gabarito ? $alternativaCorreta->texto : null,
+                'explicacao' => $simulado->mostrar_gabarito ? $resposta->questao->explicacao : null,
+                'tempo_resposta' => $resposta->tempo_resposta,
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'simulado' => $simulado->only(['id', 'titulo', 'descricao', 'mostrar_gabarito']),
+                'tentativa' => [
+                    'id' => $tentativa->id,
+                    'numero' => $tentativa->numero_tentativa,
+                    'data_inicio' => $tentativa->data_inicio->format('Y-m-d H:i:s'),
+                    'data_fim' => $tentativa->data_fim->format('Y-m-d H:i:s'),
+                    'tempo_total' => $tentativa->tempo_total,
+                ],
+                'estatisticas' => [
+                    'total_questoes' => $tentativa->total_questoes,
+                    'acertos' => $tentativa->acertos,
+                    'erros' => $tentativa->erros,
+                    'percentual_acerto' => $tentativa->percentual_acerto,
+                ],
+                'respostas' => $detalhesRespostas,
             ],
         ]);
     }
