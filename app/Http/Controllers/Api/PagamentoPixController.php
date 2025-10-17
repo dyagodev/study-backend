@@ -231,9 +231,12 @@ class PagamentoPixController extends Controller
                 return response()->json(['message' => 'Pagamento não encontrado'], 404);
             }
 
+            // Mapear status da ValidaPay para o banco
+            $statusBanco = $this->mapearStatusParaBanco($dados['status']);
+
             // Atualizar status
             $pagamento->update([
-                'status' => $dados['status'],
+                'status' => $statusBanco,
                 'resposta_validapay' => $dados,
             ]);
 
@@ -247,6 +250,22 @@ class PagamentoPixController extends Controller
             Log::error('Erro ao processar webhook: ' . $e->getMessage());
             return response()->json(['message' => 'Erro ao processar webhook'], 500);
         }
+    }
+
+    /**
+     * Mapear status da ValidaPay para o banco de dados
+     */
+    protected function mapearStatusParaBanco(string $status): string
+    {
+        $mapeamento = [
+            'PENDING' => 'PENDENTE',
+            'CONFIRMED' => 'CONCLUIDA',  // ✅ Mapeamento principal
+            'PAID' => 'CONCLUIDA',
+            'CANCELLED' => 'CANCELADA',
+            'EXPIRED' => 'EXPIRADA',
+        ];
+
+        return $mapeamento[strtoupper($status)] ?? strtolower($status);
     }
 
     /**
