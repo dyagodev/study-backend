@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Painel Admin') - Study</title>
-    
+
     <!-- Tailwind CSS -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    
+
     @yield('styles')
 </head>
 <body class="h-full">
@@ -140,7 +140,7 @@
     </div>
 
     @yield('scripts')
-    
+
     <script>
         // Auto-hide alerts after 5 seconds
         setTimeout(() => {

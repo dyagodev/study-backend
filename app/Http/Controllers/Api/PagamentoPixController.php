@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\PaymentApprovedMail;
 use App\Models\PagamentoPix;
 use App\Services\CreditoService;
 use App\Services\ValidaPayService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 class PagamentoPixController extends Controller
 {
@@ -295,6 +297,23 @@ class PagamentoPixController extends Controller
                 'user_id' => $pagamento->user_id,
                 'creditos' => $pagamento->creditos,
             ]);
+
+            // Enviar email de confirmação de pagamento
+            try {
+                // Recarregar o pagamento com o usuário para garantir dados atualizados
+                $pagamento->refresh();
+                $pagamento->load('user');
+                
+                Mail::to($pagamento->user->email)->send(new PaymentApprovedMail($pagamento));
+                
+                Log::info('Email de pagamento aprovado enviado', [
+                    'pagamento_id' => $pagamento->id,
+                    'user_email' => $pagamento->user->email,
+                ]);
+            } catch (\Exception $e) {
+                // Log do erro mas não falha o processamento do pagamento
+                Log::error('Erro ao enviar email de pagamento aprovado: ' . $e->getMessage());
+            }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Erro ao processar pagamento concluído: ' . $e->getMessage());

@@ -38,7 +38,7 @@
                         @else
                             <span class="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">Aluno</span>
                         @endif
-                        
+
                         @if($usuario->blocked_at)
                             <span class="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-800">
                                 <svg class="mr-1 h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
@@ -58,7 +58,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="px-4 py-5 sm:p-6">
             <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
                 <div>
