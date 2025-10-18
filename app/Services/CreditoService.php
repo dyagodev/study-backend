@@ -9,12 +9,12 @@ use Illuminate\Support\Facades\DB;
 class CreditoService
 {
     /**
-     * Custos de operações em créditos
+     * Custos de operações em créditos (atualizados)
      */
-    const CUSTO_QUESTAO_SIMPLES = 1;
-    const CUSTO_QUESTAO_VARIACAO = 2;
-    const CUSTO_QUESTAO_IMAGEM = 3;
-    const CUSTO_SIMULADO = 5;
+    const CUSTO_QUESTAO_SIMPLES = 3;    // Era 1, agora 3 (200% de aumento)
+    const CUSTO_QUESTAO_VARIACAO = 5;   // Era 2, agora 5 (150% de aumento)
+    const CUSTO_QUESTAO_IMAGEM = 8;     // Era 3, agora 8 (167% de aumento)
+    const CUSTO_SIMULADO = 10;          // Era 5, agora 10 (100% de aumento)
 
     /**
      * Debita créditos do usuário

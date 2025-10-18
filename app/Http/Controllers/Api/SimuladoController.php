@@ -6,11 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Models\RespostaUsuario;
 use App\Models\Simulado;
 use App\Models\SimuladoTentativa;
+use App\Services\CreditoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SimuladoController extends Controller
 {
+    protected $creditoService;
+
+    public function __construct(CreditoService $creditoService)
+    {
+        $this->creditoService = $creditoService;
+    }
     public function index(Request $request)
     {
         $query = Simulado::with(['user'])
@@ -124,7 +131,7 @@ class SimuladoController extends Controller
         ]);
 
         $simulado->update($request->only([
-            'titulo', 'descricao', 'tempo_limite', 
+            'titulo', 'descricao', 'tempo_limite',
             'embaralhar_questoes', 'mostrar_gabarito', 'status'
         ]));
 
@@ -154,6 +161,8 @@ class SimuladoController extends Controller
 
     public function iniciar(Simulado $simulado, Request $request)
     {
+        $user = $request->user();
+
         if ($simulado->status !== 'ativo') {
             return response()->json([
                 'success' => false,
@@ -161,21 +170,54 @@ class SimuladoController extends Controller
             ], 422);
         }
 
-        $questoes = $simulado->questoes()->with(['tema', 'alternativas'])->get();
-
-        if ($simulado->embaralhar_questoes) {
-            $questoes = $questoes->shuffle();
+        // Verificar se usuário tem créditos suficientes
+        $custoSimulado = CreditoService::CUSTO_SIMULADO;
+        if (!$user->temCreditos($custoSimulado)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Créditos insuficientes para iniciar simulado',
+                'creditos_necessarios' => $custoSimulado,
+                'creditos_atuais' => $user->creditos,
+            ], 422);
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Simulado iniciado',
-            'data' => [
-                'simulado' => $simulado->only(['id', 'titulo', 'descricao', 'tempo_limite']),
-                'questoes' => $questoes,
-                'tempo_inicio' => now(),
-            ],
-        ]);
+        DB::beginTransaction();
+        try {
+            // Debitar créditos antes de iniciar o simulado
+            $this->creditoService->debitar(
+                $user,
+                $custoSimulado,
+                "Simulado iniciado: {$simulado->titulo}",
+                'simulado',
+                $simulado->id
+            );
+
+            $questoes = $simulado->questoes()->with(['tema', 'alternativas'])->get();
+
+            if ($simulado->embaralhar_questoes) {
+                $questoes = $questoes->shuffle();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Simulado iniciado',
+                'creditos_debitados' => $custoSimulado,
+                'creditos_restantes' => $user->fresh()->creditos,
+                'data' => [
+                    'simulado' => $simulado->only(['id', 'titulo', 'descricao', 'tempo_limite']),
+                    'questoes' => $questoes,
+                    'tempo_inicio' => now(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao iniciar simulado: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function responder(Request $request, Simulado $simulado)
@@ -198,7 +240,7 @@ class SimuladoController extends Controller
             $ultimaTentativa = SimuladoTentativa::where('simulado_id', $simulado->id)
                 ->where('user_id', $request->user()->id)
                 ->max('numero_tentativa');
-            
+
             $numeroTentativa = ($ultimaTentativa ?? 0) + 1;
 
             // Criar registro da tentativa
@@ -295,7 +337,7 @@ class SimuladoController extends Controller
 
         $detalhesRespostas = $respostas->map(function ($resposta) use ($simulado) {
             $alternativaCorreta = $resposta->questao->alternativas->where('correta', true)->first();
-            
+
             return [
                 'questao_id' => $resposta->questao_id,
                 'questao_enunciado' => $resposta->questao->enunciado,
@@ -405,7 +447,7 @@ class SimuladoController extends Controller
 
         $detalhesRespostas = $respostas->map(function ($resposta) use ($simulado) {
             $alternativaCorreta = $resposta->questao->alternativas->where('correta', true)->first();
-            
+
             return [
                 'questao_id' => $resposta->questao_id,
                 'questao_enunciado' => $resposta->questao->enunciado,

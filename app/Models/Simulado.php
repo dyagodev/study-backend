@@ -40,4 +40,5 @@ class Simulado extends Model
     {
         return $this->hasMany(RespostaUsuario::class);
     }
+
 }

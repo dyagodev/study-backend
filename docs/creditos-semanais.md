@@ -11,14 +11,14 @@ O sistema implementa **créditos semanais** que são renovados automaticamente t
 - ✅ **Créditos renovam toda SEGUNDA-FEIRA às 00:00** (horário de Brasília)
 - ✅ **Verificação em tempo real** ao usar qualquer funcionalidade
 - ✅ **Reset automático** se passaram 7 dias desde a última renovação
-- ✅ **100 créditos semanais** por padrão (configurável)
+- ✅ **50 créditos semanais** por padrão (configurável)
 
 ### Campos no Banco de Dados
 
 ```sql
 users
 ├── creditos (integer)              -- Saldo atual
-├── creditos_semanais (integer)     -- Quantidade que recebe toda semana (default: 100)
+├── creditos_semanais (integer)     -- Quantidade que recebe toda semana (default: 50)
 └── ultima_renovacao (timestamp)    -- Data da última renovação
 ```
 
@@ -61,8 +61,8 @@ Esse comando:
 {
   "success": true,
   "data": {
-    "creditos": 85,
-    "creditos_semanais": 100,
+    "creditos": 35,
+    "creditos_semanais": 50,
     "dias_para_renovacao": 3,
     "proxima_renovacao": "2025-10-21 00:00:00",
     "ultima_renovacao": "2025-10-14 00:00:00"

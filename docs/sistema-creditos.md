@@ -8,7 +8,9 @@ O sistema de créditos controla o uso de recursos que utilizam IA (geração de 
 
 ### Créditos
 - **Moeda virtual** do sistema para controlar uso de recursos
-- Cada usuário começa com **100 créditos** gratuitos ao se cadastrar
+## Créditos Iniciais
+
+- Cada usuário começa com **50 créditos** gratuitos ao se cadastrar
 - Créditos são **debitados** ao gerar questões ou criar simulados
 - Admin pode **adicionar créditos** manualmente
 
@@ -343,7 +345,7 @@ users
 ├── id
 ├── name
 ├── email
-├── creditos (integer, default: 100)  -- Novo campo
+├── creditos (integer, default: 50)  -- Novo campo
 └── ...
 ```
 
@@ -460,8 +462,8 @@ async function mostrarHistorico() {
 ### 1. Usuário Novo Cadastra-se
 ```
 1. User se registra
-2. Sistema cria conta com 100 créditos (default)
-3. User pode gerar até 100 questões simples antes de acabar
+2. Sistema cria conta com 50 créditos (default)
+3. User pode gerar até 16 questões simples antes de acabar (50/3 ≈ 16)
 ```
 
 ### 2. Usuário Tenta Gerar Sem Créditos
@@ -634,7 +636,7 @@ curl -X POST http://localhost/api/login \
     "password": "senha123"
   }'
 
-# Verificar saldo (deve ser 100)
+# Verificar saldo (deve ser 50)
 curl http://localhost/api/creditos/saldo \
   -H "Authorization: Bearer {token}"
 ```

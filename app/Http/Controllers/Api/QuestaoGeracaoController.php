@@ -29,6 +29,9 @@ class QuestaoGeracaoController extends Controller
             'assunto' => 'required|string|max:255',
             'quantidade' => 'sometimes|integer|min:1|max:10',
             'nivel' => 'sometimes|in:facil,medio,dificil,muito_dificil',
+            'tipo_questao' => 'sometimes|in:concurso,enem,prova_crc,oab,outros',
+            'tipo_questao_outro' => 'required_if:tipo_questao,outros|string|max:100',
+            'banca' => 'nullable|string|max:150',
         ]);
 
         $userId = $request->user()->id;
@@ -45,6 +48,9 @@ class QuestaoGeracaoController extends Controller
         $assunto = $request->assunto;
         $quantidade = $request->quantidade ?? 5;
         $nivel = $request->nivel ?? 'medio'; // Default: médio
+        $tipoQuestao = $request->tipo_questao ?? 'concurso'; // Default: concurso
+        $tipoQuestaoOutro = $request->tipo_questao_outro;
+        $banca = $request->banca;
 
         // Calcular custo e verificar créditos
         $custo = $this->creditoService->calcularCustoQuestoes('simples', $quantidade);
@@ -63,7 +69,10 @@ class QuestaoGeracaoController extends Controller
                 $tema->nome,
                 $assunto,
                 $quantidade,
-                $nivel
+                $nivel,
+                $tipoQuestao,
+                $tipoQuestaoOutro,
+                $banca
             );
 
             $questoesSalvas = $this->salvarQuestoes(
@@ -72,7 +81,11 @@ class QuestaoGeracaoController extends Controller
                 $assunto,
                 $request->user()->id,
                 'ia_tema',
-                $nivel
+                $nivel,
+                null,
+                $tipoQuestao,
+                $tipoQuestaoOutro,
+                $banca
             );
 
             // Debitar créditos após geração bem-sucedida
@@ -107,6 +120,9 @@ class QuestaoGeracaoController extends Controller
             'quantidade' => 'sometimes|integer|min:1|max:5',
             'tema_id' => 'required|exists:temas,id',
             'nivel' => 'sometimes|in:facil,medio,dificil,muito_dificil',
+            'tipo_questao' => 'sometimes|in:concurso,enem,prova_crc,oab,outros',
+            'tipo_questao_outro' => 'required_if:tipo_questao,outros|string|max:100',
+            'banca' => 'nullable|string|max:150',
         ]);
 
         $userId = $request->user()->id;
@@ -123,6 +139,9 @@ class QuestaoGeracaoController extends Controller
 
         $assunto = $request->assunto;
         $nivel = $request->nivel ?? 'medio'; // Default: médio
+        $tipoQuestao = $request->tipo_questao ?? 'concurso'; // Default: concurso
+        $tipoQuestaoOutro = $request->tipo_questao_outro;
+        $banca = $request->banca;
 
         // Calcular custo e verificar créditos (variação)
         $custo = $this->creditoService->calcularCustoQuestoes('variacao', $quantidade);
@@ -140,7 +159,10 @@ class QuestaoGeracaoController extends Controller
             $questoesGeradas = $this->aiService->gerarVariacoesQuestao(
                 $request->questao_exemplo,
                 $quantidade,
-                $nivel
+                $nivel,
+                $tipoQuestao,
+                $tipoQuestaoOutro,
+                $banca
             );
 
             $questoesSalvas = $this->salvarQuestoes(
@@ -149,7 +171,11 @@ class QuestaoGeracaoController extends Controller
                 $assunto,
                 $request->user()->id,
                 'ia_variacao',
-                $nivel
+                $nivel,
+                null,
+                $tipoQuestao,
+                $tipoQuestaoOutro,
+                $banca
             );
 
             // Debitar créditos após geração bem-sucedida
@@ -184,6 +210,9 @@ class QuestaoGeracaoController extends Controller
             'assunto' => 'required|string|max:255',
             'contexto' => 'nullable|string',
             'nivel' => 'sometimes|in:facil,medio,dificil,muito_dificil',
+            'tipo_questao' => 'sometimes|in:concurso,enem,prova_crc,oab,outros',
+            'tipo_questao_outro' => 'required_if:tipo_questao,outros|string|max:100',
+            'banca' => 'nullable|string|max:150',
         ]);
 
         $userId = $request->user()->id;
@@ -198,6 +227,9 @@ class QuestaoGeracaoController extends Controller
         }
         $assunto = $request->assunto;
         $nivel = $request->nivel ?? 'medio'; // Default: médio
+        $tipoQuestao = $request->tipo_questao ?? 'concurso'; // Default: concurso
+        $tipoQuestaoOutro = $request->tipo_questao_outro;
+        $banca = $request->banca;
 
         // Calcular custo e verificar créditos (por imagem)
         $custo = $this->creditoService->calcularCustoQuestoes('imagem', 1);
@@ -219,7 +251,10 @@ class QuestaoGeracaoController extends Controller
             $questoesGeradas = $this->aiService->gerarQuestoesPorImagem(
                 $imagemBase64,
                 $request->contexto ?? '',
-                $nivel
+                $nivel,
+                $tipoQuestao,
+                $tipoQuestaoOutro,
+                $banca
             );
 
             // Salvar imagem
@@ -232,7 +267,10 @@ class QuestaoGeracaoController extends Controller
                 $request->user()->id,
                 'ia_imagem',
                 $nivel,
-                $imagemPath
+                $imagemPath,
+                $tipoQuestao,
+                $tipoQuestaoOutro,
+                $banca
             );
 
             // Debitar créditos após geração bem-sucedida
@@ -266,7 +304,10 @@ class QuestaoGeracaoController extends Controller
         int $userId,
         string $tipoGeracao,
         string $nivelDificuldade = 'medio',
-        ?string $imagemUrl = null
+        ?string $imagemUrl = null,
+        string $tipoQuestao = 'concurso',
+        ?string $tipoQuestaoOutro = null,
+        ?string $banca = null
     ): array {
         $questoesSalvas = [];
 
@@ -278,8 +319,11 @@ class QuestaoGeracaoController extends Controller
                     'assunto' => $assunto,
                     'user_id' => $userId,
                     'enunciado' => $questaoData['enunciado'],
-                    'nivel' => 'concurso', // Todas são de concurso
+                    'nivel' => 'concurso', // Mantido para compatibilidade
                     'nivel_dificuldade' => $nivelDificuldade, // facil, medio, dificil, muito_dificil
+                    'tipo_questao' => $tipoQuestao, // concurso, enem, prova_crc, oab, outros
+                    'tipo_questao_outro' => $tipoQuestaoOutro, // Especificação quando tipo_questao = 'outros'
+                    'banca' => $banca, // Banca realizadora (opcional)
                     'explicacao' => $questaoData['explicacao'] ?? null,
                     'tipo_geracao' => $tipoGeracao,
                     'imagem_url' => $imagemUrl,  // Apenas imagem enviada pelo usuário
