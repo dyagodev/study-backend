@@ -27,8 +27,8 @@ class AdminController extends Controller
             'total_simulados' => Simulado::count(),
             'simulados_hoje' => Simulado::whereDate('created_at', today())->count(),
             'total_creditos_distribuidos' => User::sum('creditos'),
-            'transacoes_pendentes' => PagamentoPix::where('status', 'pending')->count(),
-            'receita_total' => PagamentoPix::where('status', 'approved')->sum('valor'),
+            'transacoes_pendentes' => PagamentoPix::where('status', 'PENDENTE')->count(),
+            'receita_total' => PagamentoPix::where('status', 'CONCLUIDA')->sum('valor'),
         ];
 
         $usuarios_recentes = User::latest()->take(10)->get();
@@ -325,10 +325,10 @@ class AdminController extends Controller
         $pagamentos = $query->latest()->paginate(20);
 
         $stats = [
-            'total_recebido' => PagamentoPix::where('status', 'approved')->sum('valor'),
-            'pendentes' => PagamentoPix::where('status', 'pending')->count(),
-            'aprovados' => PagamentoPix::where('status', 'approved')->count(),
-            'rejeitados' => PagamentoPix::where('status', 'rejected')->count(),
+            'total_recebido' => PagamentoPix::where('status', 'CONCLUIDA')->sum('valor'),
+            'pendentes' => PagamentoPix::where('status', 'PENDENTE')->count(),
+            'aprovados' => PagamentoPix::where('status', 'CONCLUIDA')->count(),
+            'rejeitados' => PagamentoPix::whereIn('status', ['CANCELADA', 'EXPIRADA'])->count(),
         ];
 
         return view('admin.modern-pagamentos', compact('pagamentos', 'stats'));
