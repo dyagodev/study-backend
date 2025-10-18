@@ -91,7 +91,7 @@ php artisan creditos:renovar-semanais
 ```
 Iniciando renovação de créditos semanais...
 ✅ 150 usuário(s) tiveram seus créditos renovados!
-Créditos semanais: 100
+Créditos semanais: 50
 ```
 
 ### Verificar Agendamento
@@ -137,8 +137,8 @@ Configure um cron job que rode a cada minuto:
 
 ```
 1. User cria conta
-2. creditos = 100 (default)
-3. creditos_semanais = 100 (default)
+2. creditos = 50 (default)
+3. creditos_semanais = 50 (default)
 4. ultima_renovacao = NULL
 5. Ao primeiro uso:
    - Sistema define ultima_renovacao = agora
@@ -147,7 +147,7 @@ Configure um cron job que rode a cada minuto:
 ### 2. Usuário Usa Créditos Durante a Semana
 
 ```
-Segunda às 00:00: 100 créditos
+Segunda às 00:00: 50 créditos
 Terça: Usa 20 → 80 créditos restantes
 Quarta: Usa 30 → 50 créditos restantes
 Sexta: Usa 40 → 10 créditos restantes
@@ -159,9 +159,9 @@ Domingo: Usa 5 → 5 créditos restantes
 ```
 Segunda às 00:00 (7 dias depois):
 - Sistema detecta que passou 1 semana
-- creditos = 100 (resetado!)
+- creditos = 50 (resetado!)
 - ultima_renovacao = agora
-- User pode usar 100 créditos novamente
+- User pode usar 50 créditos novamente
 ```
 
 ### 4. Usuário Inativo Volta Após 3 Semanas
@@ -170,7 +170,7 @@ Segunda às 00:00 (7 dias depois):
 1. Última renovação: 21 dias atrás
 2. User tenta gerar questão
 3. Sistema verifica: 21 dias >= 7 dias ✅
-4. Reseta automaticamente: creditos = 100
+4. Reseta automaticamente: creditos = 50
 5. Atualiza ultima_renovacao = agora
 6. Prossegue com a geração
 ```
@@ -230,7 +230,7 @@ Você pode criar planos com diferentes limites semanais:
 
 | Plano | Créditos Semanais | Preço |
 |-------|------------------|-------|
-| **Gratuito** | 100 | R$ 0 |
+| **Gratuito** | 50 | R$ 0 |
 | **Básico** | 300 | R$ 19,90/mês |
 | **Pro** | 1000 | R$ 49,90/mês |
 | **Premium** | Ilimitado* | R$ 99,90/mês |
@@ -319,7 +319,7 @@ php artisan creditos:renovar-semanais
 # Verificar novo saldo
 php artisan tinker
 >>> $user->fresh()->creditos
-=> 100
+=> 50
 ```
 
 ### 2. Testar Renovação Automática

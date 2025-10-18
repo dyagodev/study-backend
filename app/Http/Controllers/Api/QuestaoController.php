@@ -13,6 +13,7 @@ class QuestaoController extends Controller
     public function index(Request $request)
     {
         $query = Questao::with(['tema', 'alternativas', 'user'])
+            ->where('user_id', $request->user()->id) // SEMPRE filtra pelo usuário logado
             ->orderBy('created_at', 'desc');
 
         // Filtro por tema
@@ -25,15 +26,9 @@ class QuestaoController extends Controller
             $query->where('nivel', $request->nivel);
         }
 
-        // Filtro por usuário (minhas questões)
-        if ($request->has('minhas') && $request->minhas) {
-            $query->where('user_id', $request->user()->id);
-        }
-
         // Filtro por favoritas
         if ($request->has('favoritas') && $request->favoritas) {
-            $query->where('user_id', $request->user()->id)
-                  ->where('favorita', true);
+            $query->where('favorita', true);
         }
 
         // Busca por texto
@@ -120,8 +115,16 @@ class QuestaoController extends Controller
         }
     }
 
-    public function show(Questao $questao)
+    public function show(Questao $questao, Request $request)
     {
+        // Verificar se o usuário é dono da questão
+        if ($questao->user_id !== $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Você não tem permissão para visualizar esta questão',
+            ], 403);
+        }
+
         $questao->load(['tema', 'alternativas', 'user']);
 
         return response()->json([
