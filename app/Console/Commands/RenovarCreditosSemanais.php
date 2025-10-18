@@ -41,7 +41,7 @@ class RenovarCreditosSemanais extends Command
 
         $this->info("✅ {$renovados} usuário(s) tiveram seus créditos renovados!");
         $this->info("Créditos semanais: {$usuarios->first()->creditos_semanais}");
-        
+
         return Command::SUCCESS;
     }
 }

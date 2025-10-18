@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             // Alterar o padrão de créditos de 100 para 50
             $table->integer('creditos')->default(50)->change();
-            
+
             // Alterar o padrão de créditos semanais de 100 para 50
             $table->integer('creditos_semanais')->default(50)->change();
         });

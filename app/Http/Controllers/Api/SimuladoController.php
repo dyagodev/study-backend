@@ -128,18 +128,63 @@ class SimuladoController extends Controller
             'embaralhar_questoes' => 'sometimes|boolean',
             'mostrar_gabarito' => 'sometimes|boolean',
             'status' => 'sometimes|in:rascunho,ativo,arquivado',
+            'questoes' => 'sometimes|array|min:1',
+            'questoes.*.questao_id' => 'required_with:questoes|exists:questoes,id',
+            'questoes.*.pontuacao' => 'sometimes|numeric|min:0',
         ]);
 
-        $simulado->update($request->only([
-            'titulo', 'descricao', 'tempo_limite',
-            'embaralhar_questoes', 'mostrar_gabarito', 'status'
-        ]));
+        DB::beginTransaction();
+        try {
+            // Atualizar informações básicas do simulado
+            $simulado->update($request->only([
+                'titulo', 'descricao', 'tempo_limite',
+                'embaralhar_questoes', 'mostrar_gabarito', 'status'
+            ]));
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Simulado atualizado com sucesso',
-            'data' => $simulado,
-        ]);
+            // Se questões foram enviadas, atualizar a lista de questões
+            if ($request->has('questoes')) {
+                // Validar que todas as questões pertencem ao usuário
+                $questaoIds = collect($request->questoes)->pluck('questao_id')->toArray();
+                $questoesDoUsuario = \App\Models\Questao::whereIn('id', $questaoIds)
+                    ->where('user_id', $request->user()->id)
+                    ->count();
+
+                if ($questoesDoUsuario !== count($questaoIds)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Você só pode adicionar questões que você criou',
+                    ], 403);
+                }
+
+                // Remover todas as questões antigas
+                $simulado->questoes()->detach();
+
+                // Adicionar novas questões
+                foreach ($request->questoes as $index => $questaoData) {
+                    $simulado->questoes()->attach($questaoData['questao_id'], [
+                        'ordem' => $index + 1,
+                        'pontuacao' => $questaoData['pontuacao'] ?? 1.0,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            $simulado->load(['questoes.tema', 'questoes.alternativas']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Simulado atualizado com sucesso',
+                'data' => $simulado,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao atualizar simulado: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function destroy(Simulado $simulado, Request $request)
@@ -157,6 +202,150 @@ class SimuladoController extends Controller
             'success' => true,
             'message' => 'Simulado excluído com sucesso',
         ]);
+    }
+
+    /**
+     * Adicionar uma questão ao simulado
+     */
+    public function adicionarQuestao(Request $request, Simulado $simulado)
+    {
+        if ($simulado->user_id !== $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Você não tem permissão para editar este simulado',
+            ], 403);
+        }
+
+        $request->validate([
+            'questao_id' => 'required|exists:questoes,id',
+            'pontuacao' => 'sometimes|numeric|min:0',
+        ]);
+
+        // Verificar se a questão pertence ao usuário
+        $questao = \App\Models\Questao::find($request->questao_id);
+        if ($questao->user_id !== $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Você só pode adicionar questões que você criou',
+            ], 403);
+        }
+
+        // Verificar se a questão já está no simulado
+        if ($simulado->questoes()->where('questao_id', $request->questao_id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta questão já está no simulado',
+            ], 422);
+        }
+
+        // Adicionar questão com ordem no final
+        $ultimaOrdem = $simulado->questoes()->max('ordem') ?? 0;
+        $simulado->questoes()->attach($request->questao_id, [
+            'ordem' => $ultimaOrdem + 1,
+            'pontuacao' => $request->pontuacao ?? 1.0,
+        ]);
+
+        $simulado->load(['questoes']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Questão adicionada ao simulado',
+            'data' => $simulado,
+        ]);
+    }
+
+    /**
+     * Remover uma questão do simulado
+     */
+    public function removerQuestao(Simulado $simulado, $questaoId, Request $request)
+    {
+        if ($simulado->user_id !== $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Você não tem permissão para editar este simulado',
+            ], 403);
+        }
+
+        // Verificar se a questão está no simulado
+        if (!$simulado->questoes()->where('questao_id', $questaoId)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Esta questão não está no simulado',
+            ], 404);
+        }
+
+        // Remover questão
+        $simulado->questoes()->detach($questaoId);
+
+        // Reordenar questões restantes
+        $questoes = $simulado->questoes()->orderBy('ordem')->get();
+        foreach ($questoes as $index => $questao) {
+            $simulado->questoes()->updateExistingPivot($questao->id, [
+                'ordem' => $index + 1
+            ]);
+        }
+
+        $simulado->load(['questoes']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Questão removida do simulado',
+            'data' => $simulado,
+        ]);
+    }
+
+    /**
+     * Reordenar questões do simulado
+     */
+    public function reordenarQuestoes(Request $request, Simulado $simulado)
+    {
+        if ($simulado->user_id !== $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Você não tem permissão para editar este simulado',
+            ], 403);
+        }
+
+        $request->validate([
+            'questoes' => 'required|array|min:1',
+            'questoes.*.questao_id' => 'required|exists:questoes,id',
+            'questoes.*.ordem' => 'required|integer|min:1',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            foreach ($request->questoes as $questaoData) {
+                // Verificar se a questão está no simulado
+                if (!$simulado->questoes()->where('questao_id', $questaoData['questao_id'])->exists()) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Questão ID ' . $questaoData['questao_id'] . ' não está no simulado',
+                    ], 422);
+                }
+
+                // Atualizar ordem
+                $simulado->questoes()->updateExistingPivot($questaoData['questao_id'], [
+                    'ordem' => $questaoData['ordem']
+                ]);
+            }
+
+            DB::commit();
+
+            $simulado->load(['questoes']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Questões reordenadas com sucesso',
+                'data' => $simulado,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao reordenar questões: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function iniciar(Simulado $simulado, Request $request)

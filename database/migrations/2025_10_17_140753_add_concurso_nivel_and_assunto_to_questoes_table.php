@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('questoes', function (Blueprint $table) {
             // Alterar a coluna nivel para incluir 'concurso'
             $table->enum('nivel', ['facil', 'medio', 'dificil', 'concurso'])->default('medio')->change();
-            
+
             // Adicionar coluna assunto
             $table->string('assunto')->nullable()->after('tema_id');
         });
@@ -28,7 +28,7 @@ return new class extends Migration
         Schema::table('questoes', function (Blueprint $table) {
             // Reverter a coluna nivel para os valores originais
             $table->enum('nivel', ['facil', 'medio', 'dificil'])->default('medio')->change();
-            
+
             // Remover coluna assunto
             $table->dropColumn('assunto');
         });

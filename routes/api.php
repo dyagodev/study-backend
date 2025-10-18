@@ -58,6 +58,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/resultado', [SimuladoController::class, 'resultado']);
         Route::get('/historico', [SimuladoController::class, 'historico']);
         Route::get('/tentativas/{tentativaId}', [SimuladoController::class, 'detalheTentativa']);
+
+        // Gerenciar questões do simulado
+        Route::post('/questoes', [SimuladoController::class, 'adicionarQuestao']);
+        Route::delete('/questoes/{questaoId}', [SimuladoController::class, 'removerQuestao']);
+        Route::put('/questoes/reordenar', [SimuladoController::class, 'reordenarQuestoes']);
     });
 
     // Estatísticas

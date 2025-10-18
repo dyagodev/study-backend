@@ -29,8 +29,8 @@ class EstatisticaController extends Controller
             ->count();
 
         // Percentual geral de acerto
-        $percentualAcerto = $totalQuestoesRespondidas > 0 
-            ? ($totalAcertos / $totalQuestoesRespondidas) * 100 
+        $percentualAcerto = $totalQuestoesRespondidas > 0
+            ? ($totalAcertos / $totalQuestoesRespondidas) * 100
             : 0;
 
         // Total de simulados realizados
@@ -175,9 +175,9 @@ class EstatisticaController extends Controller
 
         // Buscar todas as últimas tentativas de cada simulado
         $tentativas = SimuladoTentativa::select('simulado_tentativas.*')
-            ->join(DB::raw('(SELECT simulado_id, MAX(numero_tentativa) as max_tentativa 
-                            FROM simulado_tentativas 
-                            WHERE user_id = ' . $userId . ' 
+            ->join(DB::raw('(SELECT simulado_id, MAX(numero_tentativa) as max_tentativa
+                            FROM simulado_tentativas
+                            WHERE user_id = ' . $userId . '
                             GROUP BY simulado_id) as latest'),
                 function($join) {
                     $join->on('simulado_tentativas.simulado_id', '=', 'latest.simulado_id')
@@ -195,8 +195,8 @@ class EstatisticaController extends Controller
                 'acertos' => $tentativa->acertos,
                 'erros' => $tentativa->erros,
                 'percentual_acerto' => $tentativa->percentual_acerto,
-                'tempo_medio_resposta' => $tentativa->tempo_total > 0 
-                    ? round($tentativa->tempo_total / $tentativa->total_questoes, 2) 
+                'tempo_medio_resposta' => $tentativa->tempo_total > 0
+                    ? round($tentativa->tempo_total / $tentativa->total_questoes, 2)
                     : 0,
                 'total_tentativas' => SimuladoTentativa::where('simulado_id', $tentativa->simulado_id)
                     ->where('user_id', $tentativa->user_id)
@@ -210,7 +210,7 @@ class EstatisticaController extends Controller
             'data' => [
                 'total_simulados_realizados' => $estatisticas->count(),
                 'simulados' => $estatisticas,
-                'media_geral' => $estatisticas->count() > 0 
+                'media_geral' => $estatisticas->count() > 0
                     ? round($estatisticas->avg('percentual_acerto'), 2)
                     : 0,
             ],
@@ -238,7 +238,7 @@ class EstatisticaController extends Controller
             if (!$ultimaResposta) continue;
 
             $dataLimite = $ultimaResposta->created_at->copy()->subMinutes(30);
-            
+
             $respostas = RespostaUsuario::where('user_id', $userId)
                 ->where('simulado_id', $simuladoId)
                 ->where('created_at', '>=', $dataLimite)
@@ -276,7 +276,7 @@ class EstatisticaController extends Controller
 
         $simuladoId = $ultimaResposta->simulado_id;
         $dataLimite = $ultimaResposta->created_at->copy()->subMinutes(30);
-        
+
         $respostas = RespostaUsuario::where('user_id', $userId)
             ->where('simulado_id', $simuladoId)
             ->where('created_at', '>=', $dataLimite)

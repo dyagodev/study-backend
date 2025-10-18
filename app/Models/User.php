@@ -50,6 +50,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'ultima_renovacao' => 'datetime',
+            'blocked_at' => 'datetime',
         ];
     }
 
@@ -111,7 +112,7 @@ class User extends Authenticatable
 
         // Verifica se passou 1 semana (7 dias)
         $diasDesdeRenovacao = $this->ultima_renovacao->diffInDays(now());
-        
+
         if ($diasDesdeRenovacao >= 7) {
             $this->creditos = $this->creditos_semanais;
             $this->ultima_renovacao = now();
@@ -130,7 +131,7 @@ class User extends Authenticatable
 
         $diasDesdeRenovacao = $this->ultima_renovacao->diffInDays(now());
         $diasRestantes = 7 - $diasDesdeRenovacao;
-        
+
         return max(0, $diasRestantes);
     }
 

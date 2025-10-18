@@ -54,7 +54,7 @@ class QuestaoGeracaoController extends Controller
 
         // Calcular custo e verificar créditos
         $custo = $this->creditoService->calcularCustoQuestoes('simples', $quantidade);
-        
+
         if (!$request->user()->temCreditos($custo)) {
             return response()->json([
                 'success' => false,
@@ -145,7 +145,7 @@ class QuestaoGeracaoController extends Controller
 
         // Calcular custo e verificar créditos (variação)
         $custo = $this->creditoService->calcularCustoQuestoes('variacao', $quantidade);
-        
+
         if (!$request->user()->temCreditos($custo)) {
             return response()->json([
                 'success' => false,
@@ -233,7 +233,7 @@ class QuestaoGeracaoController extends Controller
 
         // Calcular custo e verificar créditos (por imagem)
         $custo = $this->creditoService->calcularCustoQuestoes('imagem', 1);
-        
+
         if (!$request->user()->temCreditos($custo)) {
             return response()->json([
                 'success' => false,

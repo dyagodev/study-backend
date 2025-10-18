@@ -75,7 +75,7 @@ class ValidaPayService
 
     /**
      * Criar cobrança PIX
-     * 
+     *
      * @param float $valor Valor em reais
      * @param string $webhookUrl URL do webhook para notificação
      * @param array $split Array de split de pagamento (opcional)
@@ -118,7 +118,7 @@ class ValidaPayService
             if ($response->failed()) {
                 $errorBody = $response->body();
                 $errorJson = $response->json();
-                
+
                 Log::error('Erro ao criar cobrança ValidaPay', [
                     'status' => $response->status(),
                     'body' => $errorBody,
@@ -130,7 +130,7 @@ class ValidaPayService
                     ],
                     'url' => "{$this->apiUrl}/pix?eventType=cob_pix",
                 ]);
-                
+
                 $errorMessage = $errorJson['message'] ?? $errorJson['error'] ?? $errorBody;
                 throw new Exception('Erro ao criar cobrança PIX: ' . $errorMessage);
             }
@@ -151,7 +151,7 @@ class ValidaPayService
 
     /**
      * Consultar cobrança PIX por transactionId
-     * 
+     *
      * @param int $transactionId
      * @return array
      */
@@ -181,7 +181,7 @@ class ValidaPayService
 
     /**
      * Listar cobranças com filtros
-     * 
+     *
      * @param array $filtros ['inicio' => '2025-01-01T00:00:00Z', 'fim' => '2025-01-31T23:59:59Z', 'status' => 'ATIVA']
      * @return array
      */
@@ -212,7 +212,7 @@ class ValidaPayService
 
     /**
      * Revisar cobrança (alterar valor, vencimento, etc)
-     * 
+     *
      * @param string $txid
      * @param array $dados
      * @return array
@@ -244,7 +244,7 @@ class ValidaPayService
 
     /**
      * Processar webhook de pagamento
-     * 
+     *
      * @param array $payload
      * @return array
      */
@@ -279,7 +279,7 @@ class ValidaPayService
 
     /**
      * Limpar CPF/CNPJ (remover pontos, traços, etc)
-     * 
+     *
      * @param string $documento
      * @return string
      */
@@ -290,7 +290,7 @@ class ValidaPayService
 
     /**
      * Validar status de pagamento
-     * 
+     *
      * @param string $status
      * @return bool
      */

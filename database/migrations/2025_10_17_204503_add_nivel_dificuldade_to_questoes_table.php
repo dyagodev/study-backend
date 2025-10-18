@@ -16,7 +16,7 @@ return new class extends Migration
                   ->default('medio')
                   ->after('nivel')
                   ->comment('Nível de dificuldade da questão de concurso');
-            
+
             $table->index('nivel_dificuldade');
         });
     }

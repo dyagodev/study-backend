@@ -16,12 +16,12 @@ return new class extends Migration
             $table->enum('tipo_questao', ['concurso', 'enem', 'prova_crc', 'oab', 'outros'])
                 ->default('concurso')
                 ->after('nivel_dificuldade');
-            
+
             // Campo para especificar quando tipo_questao = 'outros'
             $table->string('tipo_questao_outro', 100)
                 ->nullable()
                 ->after('tipo_questao');
-            
+
             // Banca realizadora (opcional)
             $table->string('banca', 150)
                 ->nullable()

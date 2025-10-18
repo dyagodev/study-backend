@@ -20,16 +20,16 @@ class AIService
     }
 
     public function gerarQuestoesPorTema(
-        string $tema, 
-        string $assunto, 
-        int $quantidade = 5, 
+        string $tema,
+        string $assunto,
+        int $quantidade = 5,
         string $nivel = 'medio',
         string $tipoQuestao = 'concurso',
         ?string $tipoQuestaoOutro = null,
         ?string $banca = null
     ) {
         $prompt = $this->construirPromptPorTema($tema, $assunto, $quantidade, $nivel, $tipoQuestao, $tipoQuestaoOutro, $banca);
-        
+
         try {
             $response = $this->chamarOpenAI($prompt);
             return $this->processarRespostaQuestoes($response);
@@ -40,15 +40,15 @@ class AIService
     }
 
     public function gerarVariacoesQuestao(
-        string $questaoExemplo, 
-        int $quantidade = 3, 
+        string $questaoExemplo,
+        int $quantidade = 3,
         string $nivel = 'medio',
         string $tipoQuestao = 'concurso',
         ?string $tipoQuestaoOutro = null,
         ?string $banca = null
     ) {
         $prompt = $this->construirPromptVariacao($questaoExemplo, $quantidade, $nivel, $tipoQuestao, $tipoQuestaoOutro, $banca);
-        
+
         try {
             $response = $this->chamarOpenAI($prompt);
             return $this->processarRespostaQuestoes($response);
@@ -59,15 +59,15 @@ class AIService
     }
 
     public function gerarQuestoesPorImagem(
-        string $imagemBase64, 
-        string $contexto = '', 
+        string $imagemBase64,
+        string $contexto = '',
         string $nivel = 'medio',
         string $tipoQuestao = 'concurso',
         ?string $tipoQuestaoOutro = null,
         ?string $banca = null
     ) {
         $prompt = $this->construirPromptImagem($contexto, $nivel, $tipoQuestao, $tipoQuestaoOutro, $banca);
-        
+
         try {
             $response = $this->chamarOpenAIComImagem($prompt, $imagemBase64);
             return $this->processarRespostaQuestoes($response);
@@ -78,9 +78,9 @@ class AIService
     }
 
     protected function construirPromptPorTema(
-        string $tema, 
-        string $assunto, 
-        int $quantidade, 
+        string $tema,
+        string $assunto,
+        int $quantidade,
         string $nivel,
         string $tipoQuestao = 'concurso',
         ?string $tipoQuestaoOutro = null,
@@ -125,7 +125,7 @@ Para cada questão, forneça:
 3. Indique qual alternativa é a correta
 4. Uma breve explicação da resposta correta
 
-IMPORTANTE: 
+IMPORTANTE:
 - TODAS as questões devem ser do tipo {$tipoDescricao}
 - O nível de dificuldade deve ser EXATAMENTE {$nivelDescricao}
 - NÃO crie questões que dependam de imagens, gráficos, figuras ou diagramas
@@ -150,8 +150,8 @@ Retorne no formato JSON:
     }
 
     protected function construirPromptVariacao(
-        string $questaoExemplo, 
-        int $quantidade, 
+        string $questaoExemplo,
+        int $quantidade,
         string $nivel = 'medio',
         string $tipoQuestao = 'concurso',
         ?string $tipoQuestaoOutro = null,
@@ -192,7 +192,7 @@ Para cada questão, forneça:
 3. Indique qual alternativa é a correta
 4. Uma breve explicação da resposta correta
 
-IMPORTANTE: 
+IMPORTANTE:
 - TODAS as questões devem ser do tipo {$tipoDescricao}
 - O nível de dificuldade deve ser EXATAMENTE {$nivelDescricao}
 - Mantenha o formato e estilo da questão original
@@ -217,14 +217,14 @@ Retorne no formato JSON:
     }
 
     protected function construirPromptImagem(
-        string $contexto, 
+        string $contexto,
         string $nivel = 'medio',
         string $tipoQuestao = 'concurso',
         ?string $tipoQuestaoOutro = null,
         ?string $banca = null
     ): string {
         $contextoTexto = $contexto ? "Contexto adicional: {$contexto}\n\n" : '';
-        
+
         $nivelDescricao = match($nivel) {
             'facil' => 'FÁCIL',
             'medio' => 'MÉDIO',
@@ -257,7 +257,7 @@ Para cada questão, forneça:
 3. Indique qual alternativa é a correta
 4. Uma breve explicação da resposta correta
 
-IMPORTANTE: 
+IMPORTANTE:
 - TODAS as questões devem ser do tipo {$tipoDescricao}
 - O nível de dificuldade deve ser EXATAMENTE {$nivelDescricao}
 - Descreva completamente o conteúdo da imagem no enunciado, pois o usuário não terá acesso à imagem original
@@ -367,18 +367,18 @@ Retorne no formato JSON:
             // JSON truncado - tentar adicionar ] para fechar
             $textoCorrigido = rtrim($texto, " \t\n\r\0\x0B,") . ']';
             $decoded = json_decode($textoCorrigido, true);
-            
+
             if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && count($decoded) > 0) {
                 Log::warning('Resposta da IA foi truncada, mas ' . count($decoded) . ' questão(ões) válida(s) foram recuperadas.');
                 return $decoded;
             }
-            
+
             // Tentar remover última entrada incompleta e fechar array
             $ultimaVirgula = strrpos($texto, '},');
             if ($ultimaVirgula !== false) {
                 $textoCorrigido = substr($texto, 0, $ultimaVirgula + 1) . ']';
                 $decoded = json_decode($textoCorrigido, true);
-                
+
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && count($decoded) > 0) {
                     Log::warning('Resposta da IA foi truncada, última questão removida. ' . count($decoded) . ' questão(ões) válida(s) foram recuperadas.');
                     return $decoded;
