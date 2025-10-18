@@ -115,7 +115,7 @@
             </div>
 
             <div style="text-align: center;">
-                <a href="{{ config('app.url') }}" class="button">Começar a Estudar</a>
+                <a href="https://seuestudo.com" class="button">Começar a Estudar</a>
             </div>
 
             <p style="margin-top: 30px;">Se você tiver alguma dúvida ou precisar de ajuda, nossa equipe de suporte está sempre disponível para ajudá-lo.</p>
@@ -124,7 +124,7 @@
         </div>
 
         <div class="footer">
-            <p>© {{ date('Y') }} {{ config('app.name', 'Study') }}. Todos os direitos reservados.</p>
+            <p>© {{ date('Y') }} {{ config('app.name', 'Seu Estudo') }}. Todos os direitos reservados.</p>
             <p style="font-size: 12px; margin-top: 10px;">Você está recebendo este email porque se cadastrou em nossa plataforma.</p>
         </div>
     </div>

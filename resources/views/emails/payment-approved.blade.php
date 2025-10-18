@@ -139,7 +139,7 @@
             </div>
 
             <div style="text-align: center;">
-                <a href="{{ config('app.url') }}" class="button">Acessar Plataforma</a>
+                <a href="https://seuestudo.com" class="button">Acessar Plataforma</a>
             </div>
 
             <p style="margin-top: 30px;">Obrigado por confiar em nossos serviços. Desejamos ótimos estudos! 📚</p>
