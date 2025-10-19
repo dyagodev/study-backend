@@ -15,7 +15,7 @@ class AIService
     public function __construct()
     {
         $this->apiKey = config('services.openai.api_key');
-        $this->model = config('services.openai.model', 'gpt-4-turbo-preview');
+        $this->model = config('services.openai.model', 'gpt-4o-mini');
         $this->maxTokens = (int) config('services.openai.max_tokens', 2000);
     }
 
