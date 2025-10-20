@@ -16,12 +16,22 @@ Sistema para responder questões individualmente (sem simulado), com busca autom
 
 **Body:**
 ```json
+#### Request
+```json
 {
-  "tema_id": 1,
+  "tema_id": 5,
   "nivel": "medio",
-  "tipo_questao": "concurso",
-  "banca": "CESPE"
+  "tipo_questao": "concurso",      // opcional
+  "tipo_questao_outro": "string",  // opcional
+  "banca": "CESPE",                 // opcional
+  "incluir_respondidas": false      // opcional - default: false
 }
+```
+
+**Novo Parâmetro:**
+- `incluir_respondidas` (boolean, opcional): Se `true`, permite buscar questões já respondidas para revisão. Útil quando o usuário quer treinar novamente questões que já respondeu.
+
+#### Response (Success - 200)
 ```
 
 **Parâmetros:**
@@ -33,30 +43,111 @@ Sistema para responder questões individualmente (sem simulado), com busca autom
 
 **Resposta Sucesso (200):**
 ```json
+```json
 {
   "success": true,
   "data": {
     "questao": {
-      "id": 123,
+      "id": 42,
+      "tema_id": 5,
       "enunciado": "Qual é a capital do Brasil?",
-      "nivel": "medio",
-      "tema": { ... },
-      "alternativas": [ ... ]
+      "nivel": "facil",
+      "tipo_questao": "concurso",
+      "banca": "CESPE",
+      "tema": {
+        "id": 5,
+        "nome": "Geografia"
+      },
+      "alternativas": [
+        {
+          "id": 101,
+          "texto": "São Paulo",
+          "correta": false
+        },
+        {
+          "id": 102,
+          "texto": "Brasília",
+          "correta": true
+        },
+        {
+          "id": 103,
+          "texto": "Rio de Janeiro",
+          "correta": false
+        }
+      ]
     },
     "total_disponiveis": 15,
-    "total_respondidas": 5
+    "total_respondidas": 5,
+    "ja_respondida": false,
+    "modo_revisao": false
   }
 }
 ```
 
-**Resposta Questões Acabaram (404):**
+**Novos Campos na Resposta:**
+- `ja_respondida` (boolean): Indica se esta questão específica já foi respondida pelo usuário
+- `modo_revisao` (boolean): Indica se o modo revisão está ativo (`incluir_respondidas=true`)
+
+#### Response (Questão já Respondida em Modo Revisão - 200)
+```json
+{
+  "success": true,
+  "data": {
+    "questao": { /* questão que já foi respondida */ },
+    "total_disponiveis": 20,
+    "total_respondidas": 15,
+    "ja_respondida": true,
+    "modo_revisao": true
+  }
+}
+```
+
+#### Response (Sem Questões - 404)
+```
+
+#### Response (Sem Questões - 404)
 ```json
 {
   "success": false,
-  "message": "Não há mais questões disponíveis com essas configurações.",
+  "message": "Não há mais questões não respondidas. Você pode ativar o modo revisão para responder questões novamente.",
   "data": {
     "questoes_acabaram": true,
     "total_respondidas": 20,
+    "modo_revisao_ativo": false,
+    "sugestao_modo_revisao": "Ative incluir_respondidas=true para revisar questões já respondidas",
+    "desempenho": {
+      "resumo": {
+        "total_respostas": 25,
+        "questoes_unicas": 20,
+        "acertos": 18,
+        "erros": 7,
+        "percentual_acerto": 72,
+        "tempo_medio_segundos": 45.5,
+        "tempo_medio_formatado": "45s"
+      },
+      "sequencias": {
+        "maior_sequencia_acertos": 10,
+        "maior_sequencia_erros": 2,
+        "sequencia_atual": 3
+      },
+      "ultima_resposta": {
+        "correta": true,
+        "data": "15/10/2025 14:30",
+        "tempo_gasto": "42s"
+      },
+      "evolucao": {
+        "percentual_inicio": 65,
+        "percentual_recente": 80,
+        "diferenca": 15,
+        "melhorou": true,
+        "mensagem": "Você melhorou 15% em relação ao início!"
+      },
+      "avaliacao": {
+        "nivel": "Bom",
+        "mensagem": "Você está no caminho certo!",
+        "recomendacao": "Continue estudando e praticando para melhorar ainda mais."
+      }
+    },
     "sugestao_geracao": {
       "quantidade_sugerida": 5,
       "custo_creditos": 15,
@@ -65,6 +156,11 @@ Sistema para responder questões individualmente (sem simulado), com busca autom
   }
 }
 ```
+
+**Campos Adicionais quando Sem Questões:**
+- `modo_revisao_ativo` (boolean): Indica se o modo revisão estava ativo
+- `sugestao_modo_revisao` (string|null): Sugestão para ativar modo revisão (só aparece se não estava ativo)
+- `desempenho` (object): Relatório completo de desempenho do usuário neste tema/nível
 
 ---
 
@@ -408,7 +504,217 @@ sistema.iniciarPratica({
 
 ---
 
-## 📊 Tabela de Custos
+## � Modo Revisão
+
+### O que é?
+
+O **Modo Revisão** permite que o usuário responda novamente questões que já foram respondidas anteriormente. É útil para:
+- Treinar questões que errou
+- Reforçar conhecimento em questões já vistas
+- Praticar até memorizar as respostas corretas
+- Medir evolução respondendo a mesma questão após estudar
+
+### Como Ativar
+
+Adicione o parâmetro `incluir_respondidas: true` na chamada de próxima questão:
+
+```javascript
+await fetch('/api/questoes/proxima-questao', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    tema_id: 5,
+    nivel: 'medio',
+    incluir_respondidas: true  // ✨ Ativa modo revisão
+  })
+});
+```
+
+### Comportamento
+
+**Sem Modo Revisão (padrão):**
+- Retorna apenas questões **não respondidas**
+- Quando acabarem, sugere gerar mais ou ativar modo revisão
+- `ja_respondida: false` sempre
+- `modo_revisao: false`
+
+**Com Modo Revisão:**
+- Retorna **todas** as questões (respondidas e não respondidas)
+- Permite responder a mesma questão múltiplas vezes
+- `ja_respondida: true/false` indica status da questão retornada
+- `modo_revisao: true`
+
+### Exemplo de UX
+
+```vue
+<template>
+  <div class="pratica-questoes">
+    <!-- Toggle Modo Revisão -->
+    <div class="controles">
+      <label class="switch">
+        <input 
+          type="checkbox" 
+          v-model="modoRevisao"
+          @change="buscarProximaQuestao"
+        >
+        <span>Modo Revisão (incluir questões respondidas)</span>
+      </label>
+    </div>
+
+    <!-- Badge Indicador -->
+    <div v-if="questaoAtual.ja_respondida" class="badge badge-info">
+      📚 Você já respondeu esta questão antes
+    </div>
+
+    <!-- Questão -->
+    <div class="questao-card">
+      <h3>{{ questaoAtual.enunciado }}</h3>
+      <!-- alternativas -->
+    </div>
+
+    <!-- Info -->
+    <div class="questoes-info">
+      <span v-if="modoRevisao">
+        Modo Revisão Ativo - {{ totalDisponiveis }} questões disponíveis
+      </span>
+      <span v-else>
+        {{ totalDisponiveis }} questões não respondidas
+      </span>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      modoRevisao: false,
+      questaoAtual: null,
+      totalDisponiveis: 0
+    }
+  },
+  
+  methods: {
+    async buscarProximaQuestao() {
+      const response = await fetch('/api/questoes/proxima-questao', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          tema_id: this.temaId,
+          nivel: this.nivel,
+          incluir_respondidas: this.modoRevisao
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        this.questaoAtual = data.data.questao;
+        this.totalDisponiveis = data.data.total_disponiveis;
+      } else if (response.status === 404) {
+        // Sem questões disponíveis
+        if (data.data.sugestao_modo_revisao && !this.modoRevisao) {
+          // Sugerir ativar modo revisão
+          this.mostrarDialogo({
+            titulo: 'Questões Esgotadas',
+            mensagem: 'Você já respondeu todas as questões disponíveis!',
+            opcoes: [
+              {
+                texto: 'Ativar Modo Revisão',
+                acao: () => {
+                  this.modoRevisao = true;
+                  this.buscarProximaQuestao();
+                }
+              },
+              {
+                texto: 'Gerar Novas Questões',
+                acao: () => this.gerarMaisQuestoes()
+              }
+            ]
+          });
+        }
+      }
+    }
+  }
+}
+</script>
+```
+
+### Casos de Uso
+
+**1. Treino de Questões Difíceis**
+```javascript
+// Usuário quer treinar apenas questões que errou
+// (Implementação futura: filtrar por questões erradas)
+await fetch('/api/questoes/proxima-questao', {
+  body: JSON.stringify({
+    tema_id: 5,
+    nivel: 'dificil',
+    incluir_respondidas: true,
+    // apenas_erradas: true  // Feature futura
+  })
+});
+```
+
+**2. Prática Antes de Prova**
+```javascript
+// Usuário quer revisar todas as questões de um tema específico
+await fetch('/api/questoes/proxima-questao', {
+  body: JSON.stringify({
+    tema_id: 8,
+    nivel: 'medio',
+    banca: 'CESPE',
+    incluir_respondidas: true  // Revisar tudo
+  })
+});
+```
+
+**3. Medição de Evolução**
+```javascript
+// Sistema pode comparar:
+// - 1ª tentativa: 60% de acerto
+// - 2ª tentativa: 85% de acerto
+// - Evolução: +25%
+
+// Buscar desempenho
+await fetch('/api/questoes/desempenho', {
+  body: JSON.stringify({
+    tema_id: 5,
+    nivel: 'medio'
+  })
+});
+// Retorna: evolucao.diferenca: +25%
+```
+
+### Contadores e Estatísticas
+
+Com modo revisão ativo:
+- `total_disponiveis`: Conta **todas** as questões (respondidas + não respondidas)
+- `total_respondidas`: Quantidade de questões únicas já respondidas
+- `ja_respondida`: `true` se a questão retornada já foi respondida antes
+
+Sem modo revisão:
+- `total_disponiveis`: Apenas questões **não respondidas**
+- `total_respondidas`: Total de questões já respondidas
+- `ja_respondida`: Sempre `false`
+
+### Observações Importantes
+
+1. ✅ **Múltiplas Respostas**: O sistema permite responder a mesma questão quantas vezes quiser
+2. ✅ **Custo por Resposta**: Cada resposta custa 1 crédito, mesmo em modo revisão
+3. ✅ **Estatísticas**: O desempenho considera todas as tentativas
+4. ✅ **Isolamento**: Cada usuário vê apenas suas próprias respostas
+5. ✅ **Filtros Mantidos**: Modo revisão respeita tema, nível, tipo e banca
+
+---
+
+## �📊 Tabela de Custos
 
 | Ação | Custo em Créditos |
 |------|-------------------|

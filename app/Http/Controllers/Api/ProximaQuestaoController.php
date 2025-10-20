@@ -53,7 +53,7 @@ class ProximaQuestaoController extends Controller
             // Buscar questões disponíveis com os filtros
             $query = Questao::with(['tema', 'alternativas'])
                 ->where('tema_id', $temaId)
-                ->where('nivel', $nivel);
+                ->where('nivel_dificuldade', $nivel);
 
             // Filtrar por tipo de questão se especificado
             if ($tipoQuestao) {
@@ -72,9 +72,9 @@ class ProximaQuestaoController extends Controller
 
             // Contar total disponível antes de buscar
             $totalDisponiveis = $query->count();
-            
+
             // Contar quantas já foram respondidas neste contexto
-            $totalRespondidas = $incluirRespondidas 
+            $totalRespondidas = $incluirRespondidas
                 ? RespostaUsuario::where('user_id', $userId)
                     ->whereHas('questao', function ($q) use ($temaId, $nivel, $tipoQuestao, $banca) {
                         $q->where('tema_id', $temaId)
@@ -98,7 +98,7 @@ class ProximaQuestaoController extends Controller
             if ($proximaQuestao) {
                 // Verificar se esta questão específica já foi respondida
                 $foiRespondida = in_array($proximaQuestao->id, $questoesRespondidas);
-                
+
                 return response()->json([
                     'success' => true,
                     'data' => [
@@ -114,7 +114,7 @@ class ProximaQuestaoController extends Controller
             // Não encontrou questões disponíveis
             // Calcular desempenho do usuário neste tema/nível
             $desempenho = $this->calcularDesempenho($userId, $temaId, $nivel, $tipoQuestao, $banca);
-            
+
             // Calcular custo para gerar novas
             $quantidadeSugerida = 5;
             $custoGeracao = $this->creditoService->calcularCustoQuestoes('simples', $quantidadeSugerida);
@@ -194,7 +194,7 @@ class ProximaQuestaoController extends Controller
         if (!$user->temCreditos($custoTotal)) {
             // Calcular desempenho até o momento
             $desempenho = $this->calcularDesempenho($user->id, $temaId, $nivel, $tipoQuestao, $banca);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => "Créditos insuficientes para gerar {$quantidade} novas questões. Necessário: {$custoTotal} créditos.",
@@ -297,15 +297,15 @@ class ProximaQuestaoController extends Controller
         $query = RespostaUsuario::where('user_id', $userId)
             ->whereHas('questao', function ($q) use ($temaId, $nivel, $tipoQuestao, $banca) {
                 $q->where('tema_id', $temaId);
-                
+
                 if ($nivel) {
                     $q->where('nivel', $nivel);
                 }
-                
+
                 if ($tipoQuestao) {
                     $q->where('tipo_questao', $tipoQuestao);
                 }
-                
+
                 if ($banca) {
                     $q->where('banca', $banca);
                 }
@@ -371,10 +371,10 @@ class ProximaQuestaoController extends Controller
                 'percentual_recente' => round($percentualUltimas, 2),
                 'diferenca' => $diferencaPercentual,
                 'melhorou' => $diferencaPercentual > 0,
-                'mensagem' => $diferencaPercentual > 0 
-                    ? "Você melhorou {$diferencaPercentual}% em relação ao início!" 
-                    : ($diferencaPercentual < 0 
-                        ? "Seu desempenho caiu {$diferencaPercentual}% em relação ao início." 
+                'mensagem' => $diferencaPercentual > 0
+                    ? "Você melhorou {$diferencaPercentual}% em relação ao início!"
+                    : ($diferencaPercentual < 0
+                        ? "Seu desempenho caiu {$diferencaPercentual}% em relação ao início."
                         : "Seu desempenho se manteve estável."),
             ];
         }
