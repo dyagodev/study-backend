@@ -40,6 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/proxima-questao', [ProximaQuestaoController::class, 'proximaQuestao']); // Buscar próxima questão não respondida
         Route::post('/gerar-mais-questoes', [ProximaQuestaoController::class, 'gerarMaisQuestoes']); // Gerar mais questões quando acabarem
         Route::post('/estatisticas-disponiveis', [ProximaQuestaoController::class, 'estatisticasDisponiveis']); // Ver quantas questões disponíveis
+        Route::post('/desempenho', [ProximaQuestaoController::class, 'desempenho']); // Ver desempenho em um tema
         Route::post('/{questao}/favoritar', [QuestaoController::class, 'favoritar']);
         Route::post('/{questao}/responder', [QuestaoController::class, 'responder']); // Responder questão avulsa
     });
