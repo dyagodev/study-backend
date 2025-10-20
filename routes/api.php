@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\TemaController;
 use App\Http\Controllers\Api\QuestaoController;
 use App\Http\Controllers\Api\QuestaoGeracaoController;
+use App\Http\Controllers\Api\ProximaQuestaoController;
 use App\Http\Controllers\Api\ColecaoController;
 use App\Http\Controllers\Api\SimuladoController;
 use App\Http\Controllers\Api\EstatisticaController;
@@ -36,7 +37,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/gerar-por-tema', [QuestaoGeracaoController::class, 'gerarPorTema']);
         Route::post('/gerar-variacao', [QuestaoGeracaoController::class, 'gerarVariacao']);
         Route::post('/gerar-por-imagem', [QuestaoGeracaoController::class, 'gerarPorImagem']);
+        Route::post('/proxima-questao', [ProximaQuestaoController::class, 'proximaQuestao']); // Buscar próxima questão não respondida
+        Route::post('/gerar-mais-questoes', [ProximaQuestaoController::class, 'gerarMaisQuestoes']); // Gerar mais questões quando acabarem
+        Route::post('/estatisticas-disponiveis', [ProximaQuestaoController::class, 'estatisticasDisponiveis']); // Ver quantas questões disponíveis
         Route::post('/{questao}/favoritar', [QuestaoController::class, 'favoritar']);
+        Route::post('/{questao}/responder', [QuestaoController::class, 'responder']); // Responder questão avulsa
     });
 
     // Questões - CRUD

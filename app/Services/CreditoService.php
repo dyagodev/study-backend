@@ -15,6 +15,7 @@ class CreditoService
     const CUSTO_QUESTAO_VARIACAO = 5;   // Era 2, agora 5 (150% de aumento)
     const CUSTO_QUESTAO_IMAGEM = 8;     // Era 3, agora 8 (167% de aumento)
     const CUSTO_SIMULADO = 10;          // Era 5, agora 10 (100% de aumento)
+    const CUSTO_RESPOSTA_AVULSA = 1;    // Custo para responder questão avulsa (sem simulado)
 
     /**
      * Debita créditos do usuário

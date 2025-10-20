@@ -12,8 +12,10 @@ class QuestaoController extends Controller
 {
     public function index(Request $request)
     {
+        $userId = $request->user()->id;
+
         $query = Questao::with(['tema', 'alternativas', 'user'])
-            ->where('user_id', $request->user()->id) // SEMPRE filtra pelo usuário logado
+            ->where('user_id', $userId) // SEMPRE filtra pelo usuário logado
             ->orderBy('created_at', 'desc');
 
         // Filtro por tema
@@ -31,21 +33,51 @@ class QuestaoController extends Controller
             $query->where('favorita', true);
         }
 
-        // Busca por texto
+        // Busca por texto - CORRIGIDO: mantém o filtro de user_id
         if ($request->has('busca')) {
             $busca = $request->busca;
-            $query->where(function($q) use ($busca) {
-                $q->where('enunciado', 'LIKE', "%{$busca}%")
-                  ->orWhere('explicacao', 'LIKE', "%{$busca}%");
+            $query->where(function($q) use ($busca, $userId) {
+                $q->where('user_id', $userId) // Garante que só busca nas questões do usuário
+                  ->where(function($subq) use ($busca) {
+                      $subq->where('enunciado', 'LIKE', "%{$busca}%")
+                           ->orWhere('explicacao', 'LIKE', "%{$busca}%");
+                  });
             });
         }
 
         $questoes = $query->paginate($request->per_page ?? 15);
 
+        // Buscar IDs das questões respondidas pelo usuário
+        $questoesRespondidas = \App\Models\RespostaUsuario::where('user_id', $userId)
+            ->whereIn('questao_id', $questoes->pluck('id'))
+            ->select('questao_id', DB::raw('COUNT(*) as total_respostas'), DB::raw('MAX(created_at) as ultima_resposta'))
+            ->groupBy('questao_id')
+            ->get()
+            ->keyBy('questao_id');
+
+        // Adicionar informações de resposta a cada questão
+        $questoesComInfo = $questoes->map(function ($questao) use ($questoesRespondidas) {
+            $questaoArray = $questao->toArray();
+            
+            if ($questoesRespondidas->has($questao->id)) {
+                $info = $questoesRespondidas->get($questao->id);
+                $questaoArray['foi_respondida'] = true;
+                $questaoArray['total_respostas'] = $info->total_respostas;
+                $questaoArray['ultima_resposta'] = $info->ultima_resposta;
+            } else {
+                $questaoArray['foi_respondida'] = false;
+                $questaoArray['total_respostas'] = 0;
+                $questaoArray['ultima_resposta'] = null;
+            }
+            
+            return $questaoArray;
+        });
+
         return response()->json([
             'success' => true,
-            'data' => $questoes->items(),
+            'data' => $questoesComInfo,
             'meta' => [
+                'user_id' => Auth()->id(),
                 'current_page' => $questoes->currentPage(),
                 'last_page' => $questoes->lastPage(),
                 'per_page' => $questoes->perPage(),
@@ -115,17 +147,20 @@ class QuestaoController extends Controller
         }
     }
 
-    public function show(Questao $questao, Request $request)
+    public function show(Request $request, $id)
     {
-        // Verificar se o usuário é dono da questão
-        if ($questao->user_id !== $request->user()->id) {
+        // Buscar questão do usuário logado
+        $questao = Questao::where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->with(['tema', 'alternativas', 'user'])
+            ->first();
+
+        if (!$questao) {
             return response()->json([
                 'success' => false,
-                'message' => 'Você não tem permissão para visualizar esta questão',
-            ], 403);
+                'message' => 'Questão não encontrada ou você não tem permissão para visualizá-la',
+            ], 404);
         }
-
-        $questao->load(['tema', 'alternativas', 'user']);
 
         return response()->json([
             'success' => true,
@@ -133,14 +168,18 @@ class QuestaoController extends Controller
         ]);
     }
 
-    public function update(Request $request, Questao $questao)
+    public function update(Request $request, $id)
     {
-        // Verificar se o usuário é dono da questão
-        if ($questao->user_id !== $request->user()->id) {
+        // Buscar questão do usuário logado
+        $questao = Questao::where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (!$questao) {
             return response()->json([
                 'success' => false,
-                'message' => 'Você não tem permissão para editar esta questão',
-            ], 403);
+                'message' => 'Questão não encontrada ou você não tem permissão para editá-la',
+            ], 404);
         }
 
         $request->validate([
@@ -193,13 +232,18 @@ class QuestaoController extends Controller
         }
     }
 
-    public function destroy(Questao $questao, Request $request)
+    public function destroy(Request $request, $id)
     {
-        if ($questao->user_id !== $request->user()->id) {
+        // Buscar questão do usuário logado
+        $questao = Questao::where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (!$questao) {
             return response()->json([
                 'success' => false,
-                'message' => 'Você não tem permissão para excluir esta questão',
-            ], 403);
+                'message' => 'Questão não encontrada ou você não tem permissão para excluí-la',
+            ], 404);
         }
 
         $questao->delete();
@@ -210,13 +254,18 @@ class QuestaoController extends Controller
         ]);
     }
 
-    public function favoritar(Questao $questao, Request $request)
+    public function favoritar(Request $request, $id)
     {
-        if ($questao->user_id !== $request->user()->id) {
+        // Buscar questão do usuário logado
+        $questao = Questao::where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->first();
+
+        if (!$questao) {
             return response()->json([
                 'success' => false,
-                'message' => 'Você só pode favoritar suas próprias questões',
-            ], 403);
+                'message' => 'Questão não encontrada ou você só pode favoritar suas próprias questões',
+            ], 404);
         }
 
         $questao->update([
@@ -228,5 +277,103 @@ class QuestaoController extends Controller
             'message' => $questao->favorita ? 'Questão favoritada' : 'Questão desfavoritada',
             'data' => $questao,
         ]);
+    }
+
+    /**
+     * Responder uma questão avulsa (sem simulado)
+     * Cobra créditos por resposta
+     * Nota: Não precisa ser dono da questão para responder
+     */
+    public function responder(Request $request, $id)
+    {
+        $request->validate([
+            'alternativa_id' => 'required|exists:alternativas,id',
+            'tempo_resposta' => 'nullable|integer|min:0',
+        ]);
+
+        // Buscar questão (qualquer usuário pode responder)
+        $questao = Questao::with(['alternativas'])->find($id);
+
+        if (!$questao) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Questão não encontrada',
+            ], 404);
+        }
+
+        $user = $request->user();
+        $creditoService = app(\App\Services\CreditoService::class);
+
+        // Custo de 1 crédito por resposta avulsa
+        $custoResposta = 1;
+
+        // Verificar se o usuário tem créditos suficientes
+        if (!$user->temCreditos($custoResposta)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Créditos insuficientes. Você precisa de ' . $custoResposta . ' crédito para responder esta questão.',
+                'data' => [
+                    'creditos_necessarios' => $custoResposta,
+                    'creditos_disponiveis' => $user->creditos,
+                ],
+            ], 402); // 402 Payment Required
+        }
+
+        // Verificar se a alternativa pertence à questão
+        $alternativa = \App\Models\Alternativa::find($request->alternativa_id);
+        if ($alternativa->questao_id !== $questao->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A alternativa selecionada não pertence a esta questão',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            // Debitar créditos
+            $creditoService->debitar(
+                $user,
+                $custoResposta,
+                'Resposta de questão avulsa',
+                'questao',
+                $questao->id
+            );
+
+            // Registrar resposta
+            $resposta = \App\Models\RespostaUsuario::create([
+                'user_id' => $user->id,
+                'questao_id' => $questao->id,
+                'alternativa_id' => $request->alternativa_id,
+                'simulado_id' => null, // Não é parte de um simulado
+                'tentativa_id' => null,
+                'correta' => $alternativa->correta,
+                'tempo_resposta' => $request->tempo_resposta ?? 0,
+            ]);
+
+            // Carregar dados completos para resposta
+            $questao->load(['alternativas', 'tema']);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Resposta registrada com sucesso',
+                'data' => [
+                    'resposta_id' => $resposta->id,
+                    'correta' => $resposta->correta,
+                    'alternativa_correta_id' => $questao->alternativas->where('correta', true)->first()->id,
+                    'explicacao' => $questao->explicacao,
+                    'creditos_debitados' => $custoResposta,
+                    'creditos_restantes' => $user->fresh()->creditos,
+                    'questao' => $questao,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro ao processar resposta: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }

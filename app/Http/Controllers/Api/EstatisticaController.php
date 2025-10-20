@@ -57,6 +57,7 @@ class EstatisticaController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
+                'id' => $ultimoSimulado['simulado_id'] ?? null,
                 'resumo' => [
                     'total_questoes_respondidas' => $totalQuestoesRespondidas,
                     'total_acertos' => $totalAcertos,

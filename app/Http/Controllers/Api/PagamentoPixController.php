@@ -303,9 +303,9 @@ class PagamentoPixController extends Controller
                 // Recarregar o pagamento com o usuário para garantir dados atualizados
                 $pagamento->refresh();
                 $pagamento->load('user');
-                
+
                 Mail::to($pagamento->user->email)->send(new PaymentApprovedMail($pagamento));
-                
+
                 Log::info('Email de pagamento aprovado enviado', [
                     'pagamento_id' => $pagamento->id,
                     'user_email' => $pagamento->user->email,
