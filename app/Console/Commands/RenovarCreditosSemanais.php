@@ -45,7 +45,7 @@ class RenovarCreditosSemanais extends Command
             else {
                 // Verifica se já renovou hoje
                 $ultimaRenovacao = $usuario->ultima_renovacao ? Carbon::parse($usuario->ultima_renovacao) : null;
-                
+
                 if (!$ultimaRenovacao || !$ultimaRenovacao->isToday()) {
                     $usuario->creditos += 20;
                     $usuario->ultima_renovacao = Carbon::now();

@@ -10,6 +10,8 @@ use App\Models\PagamentoPix;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\AdminNotificationMail;
 
 class AdminController extends Controller
 {
@@ -332,5 +334,123 @@ class AdminController extends Controller
         ];
 
         return view('admin.modern-pagamentos', compact('pagamentos', 'stats'));
+    }
+
+    /**
+     * Exibe formulário para enviar e-mail para um usuário específico
+     */
+    public function enviarEmailForm($id)
+    {
+        $usuario = User::findOrFail($id);
+        return view('admin.usuarios.enviar-email', compact('usuario'));
+    }
+
+    /**
+     * Envia e-mail para um usuário específico
+     */
+    public function enviarEmail(Request $request, $id)
+    {
+        $usuario = User::findOrFail($id);
+
+        $request->validate([
+            'assunto' => 'required|string|max:255',
+            'mensagem' => 'required|string|min:10',
+        ]);
+
+        try {
+            Mail::to($usuario->email)->send(
+                new AdminNotificationMail(
+                    $request->assunto,
+                    $request->mensagem,
+                    $usuario->name
+                )
+            );
+
+            return redirect()->back()->with('success', 'E-mail enviado com sucesso para ' . $usuario->email . '!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Erro ao enviar e-mail: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Exibe formulário para enviar e-mail em massa
+     */
+    public function enviarEmailMassaForm()
+    {
+        $stats = [
+            'total_usuarios' => User::count(),
+            'total_alunos' => User::where('role', 'aluno')->count(),
+            'total_professores' => User::where('role', 'professor')->count(),
+            'total_admins' => User::where('role', 'admin')->count(),
+            'usuarios_ativos' => User::where('created_at', '>=', now()->subDays(30))->count(),
+        ];
+
+        return view('admin.usuarios.enviar-email-massa', compact('stats'));
+    }
+
+    /**
+     * Envia e-mail em massa para usuários
+     */
+    public function enviarEmailMassa(Request $request)
+    {
+        $request->validate([
+            'destinatarios' => 'required|in:todos,alunos,professores,admins,ativos',
+            'assunto' => 'required|string|max:255',
+            'mensagem' => 'required|string|min:10',
+        ]);
+
+        // Seleciona os usuários baseado no filtro
+        $query = User::query();
+
+        switch ($request->destinatarios) {
+            case 'alunos':
+                $query->where('role', 'aluno');
+                break;
+            case 'professores':
+                $query->where('role', 'professor');
+                break;
+            case 'admins':
+                $query->where('role', 'admin');
+                break;
+            case 'ativos':
+                $query->where('created_at', '>=', now()->subDays(30));
+                break;
+            case 'todos':
+            default:
+                // Nenhum filtro adicional
+                break;
+        }
+
+        $usuarios = $query->get();
+
+        if ($usuarios->isEmpty()) {
+            return redirect()->back()->with('error', 'Nenhum usuário encontrado com os critérios selecionados.');
+        }
+
+        $enviados = 0;
+        $erros = 0;
+
+        foreach ($usuarios as $usuario) {
+            try {
+                Mail::to($usuario->email)->send(
+                    new AdminNotificationMail(
+                        $request->assunto,
+                        $request->mensagem,
+                        $usuario->name
+                    )
+                );
+                $enviados++;
+            } catch (\Exception $e) {
+                $erros++;
+                \Log::error('Erro ao enviar e-mail para ' . $usuario->email . ': ' . $e->getMessage());
+            }
+        }
+
+        $mensagem = "E-mails enviados: {$enviados} de " . $usuarios->count() . " usuários.";
+        if ($erros > 0) {
+            $mensagem .= " {$erros} e-mails falharam.";
+        }
+
+        return redirect()->back()->with('success', $mensagem);
     }
 }

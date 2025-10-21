@@ -47,6 +47,12 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/usuarios/{id}/bloquear', [AdminController::class, 'bloquearUsuario'])->name('usuarios.bloquear');
     Route::post('/usuarios/{id}/desbloquear', [AdminController::class, 'desbloquearUsuario'])->name('usuarios.desbloquear');
     
+    // E-mails
+    Route::get('/usuarios/{id}/enviar-email', [AdminController::class, 'enviarEmailForm'])->name('usuarios.enviar-email-form');
+    Route::post('/usuarios/{id}/enviar-email', [AdminController::class, 'enviarEmail'])->name('usuarios.enviar-email');
+    Route::get('/usuarios-email-massa', [AdminController::class, 'enviarEmailMassaForm'])->name('usuarios.enviar-email-massa-form');
+    Route::post('/usuarios-email-massa', [AdminController::class, 'enviarEmailMassa'])->name('usuarios.enviar-email-massa');
+    
     // Estatísticas
     Route::get('/estatisticas', [AdminController::class, 'estatisticas'])->name('estatisticas');
     
