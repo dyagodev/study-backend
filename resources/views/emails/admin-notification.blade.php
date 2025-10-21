@@ -67,6 +67,28 @@
             color: #666;
             font-size: 14px;
         }
+        .cta-button {
+            display: inline-block;
+            margin: 30px 0;
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+            transition: transform 0.2s;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(102, 126, 234, 0.4);
+        }
+        .cta-container {
+            text-align: center;
+            margin: 30px 0;
+        }
     </style>
 </head>
 <body>
@@ -82,6 +104,12 @@
 
             <div class="message">
                 {{ $messageContent }}
+            </div>
+
+            <div class="cta-container">
+                <a href="{{ config('app.url') }}" class="cta-button">
+                    🚀 Acessar a Plataforma
+                </a>
             </div>
 
             <div class="signature">
