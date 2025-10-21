@@ -8,9 +8,8 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Renovar créditos semanais toda segunda-feira às 00:00
-Schedule::command('creditos:renovar-semanais')
-    ->weekly()
-    ->mondays()
+// Renovar créditos diários todos os dias às 00:00
+Schedule::command('creditos:renovar-diarios')
+    ->daily()
     ->at('00:00')
     ->timezone('America/Sao_Paulo');
