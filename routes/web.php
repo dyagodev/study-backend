@@ -52,6 +52,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('/usuarios/{id}/enviar-email', [AdminController::class, 'enviarEmail'])->name('usuarios.enviar-email');
     Route::get('/usuarios-email-massa', [AdminController::class, 'enviarEmailMassaForm'])->name('usuarios.enviar-email-massa-form');
     Route::post('/usuarios-email-massa', [AdminController::class, 'enviarEmailMassa'])->name('usuarios.enviar-email-massa');
+    Route::post('/usuarios-email-selecionados', [AdminController::class, 'enviarEmailSelecionados'])->name('usuarios.enviar-email-selecionados');
     
     // Estatísticas
     Route::get('/estatisticas', [AdminController::class, 'estatisticas'])->name('estatisticas');

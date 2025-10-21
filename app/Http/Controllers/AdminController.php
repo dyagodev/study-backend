@@ -453,4 +453,52 @@ class AdminController extends Controller
 
         return redirect()->back()->with('success', $mensagem);
     }
+
+    /**
+     * Envia e-mail para usuários selecionados
+     */
+    public function enviarEmailSelecionados(Request $request)
+    {
+        $request->validate([
+            'usuarios_selecionados' => 'required|string',
+            'assunto' => 'required|string|max:255',
+            'mensagem' => 'required|string|min:10',
+        ]);
+
+        // Converter string de IDs em array
+        $usuariosIds = explode(',', $request->usuarios_selecionados);
+        
+        // Buscar usuários
+        $usuarios = User::whereIn('id', $usuariosIds)->get();
+
+        if ($usuarios->isEmpty()) {
+            return redirect()->back()->with('error', 'Nenhum usuário encontrado com os IDs selecionados.');
+        }
+
+        $enviados = 0;
+        $erros = 0;
+
+        foreach ($usuarios as $usuario) {
+            try {
+                Mail::to($usuario->email)->send(
+                    new AdminNotificationMail(
+                        $request->assunto,
+                        $request->mensagem,
+                        $usuario->name
+                    )
+                );
+                $enviados++;
+            } catch (\Exception $e) {
+                $erros++;
+                \Log::error('Erro ao enviar e-mail para ' . $usuario->email . ': ' . $e->getMessage());
+            }
+        }
+
+        $mensagem = "E-mails enviados: {$enviados} de " . $usuarios->count() . " usuários selecionados.";
+        if ($erros > 0) {
+            $mensagem .= " {$erros} e-mails falharam.";
+        }
+
+        return redirect()->route('admin.usuarios.index')->with('success', $mensagem);
+    }
 }
