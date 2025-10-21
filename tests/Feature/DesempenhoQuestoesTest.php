@@ -11,7 +11,7 @@ use Illuminate\Support\Carbon;
 beforeEach(function () {
     $this->user = User::factory()->create(['creditos' => 100]);
     Sanctum::actingAs($this->user);
-    
+
     $this->tema = Tema::create([
         'nome' => 'Matemática',
         'descricao' => 'Questões de matemática',
@@ -53,7 +53,7 @@ test('exibe desempenho quando não há mais questões disponíveis', function ()
         ->assertJsonPath('data.questoes_acabaram', true)
         ->assertJsonPath('data.desempenho.resumo.total_respostas', 1)
         ->assertJsonPath('data.desempenho.resumo.acertos', 1);
-    
+
     // Percentual de acerto pode ser int ou float
     $percentual = $response->json('data.desempenho.resumo.percentual_acerto');
     expect($percentual)->toBeIn([100, 100.0]);
@@ -102,7 +102,7 @@ test('calcula percentual de acerto corretamente', function () {
         ->assertJsonPath('data.desempenho.resumo.total_respostas', 10)
         ->assertJsonPath('data.desempenho.resumo.acertos', 7)
         ->assertJsonPath('data.desempenho.resumo.erros', 3);
-    
+
     $percentual = $response->json('data.desempenho.resumo.percentual_acerto');
     expect($percentual)->toBeIn([70, 70.0]);
 });
@@ -110,7 +110,7 @@ test('calcula percentual de acerto corretamente', function () {
 test('calcula maior sequência de acertos', function () {
     // Criar padrão: acerto, acerto, acerto, erro, acerto, acerto, erro
     $padroes = [true, true, true, false, true, true, false];
-    
+
     foreach ($padroes as $index => $acerto) {
         $questao = Questao::create([
             'user_id' => $this->user->id,
@@ -162,7 +162,7 @@ test('mostra evolução quando há mais de 10 respostas', function () {
 
         // Primeiras 10: 40% de acerto, Últimas 10: 80% de acerto
         $correta = ($i <= 10 && $i <= 4) || ($i > 10 && $i <= 18);
-        
+
         RespostaUsuario::create([
             'user_id' => $this->user->id,
             'questao_id' => $questao->id,
@@ -178,7 +178,7 @@ test('mostra evolução quando há mais de 10 respostas', function () {
     ]);
 
     $response->assertStatus(200);
-    
+
     $evolucao = $response->json('data.desempenho.evolucao');
     expect($evolucao)->not->toBeNull();
     expect($evolucao)->toHaveKey('percentual_inicio');
@@ -295,7 +295,7 @@ test('mostra desempenho quando sem créditos para gerar questões', function () 
 test('calcula tempo médio de resposta corretamente', function () {
     // Criar 5 questões com tempos variados
     $tempos = [10, 20, 30, 40, 50]; // Média = 30
-    
+
     foreach ($tempos as $index => $tempo) {
         $questao = Questao::create([
             'user_id' => $this->user->id,
@@ -324,7 +324,7 @@ test('calcula tempo médio de resposta corretamente', function () {
     ]);
 
     $response->assertStatus(200);
-    
+
     $tempoMedio = $response->json('data.desempenho.resumo.tempo_medio_segundos');
     expect($tempoMedio)->toBeIn([30, 30.0]);
     expect($response->json('data.desempenho.resumo.tempo_medio_formatado'))->toBe('30s');
@@ -468,7 +468,7 @@ test('filtra desempenho por nível corretamente', function () {
 
     $response->assertStatus(200)
         ->assertJsonPath('data.desempenho.resumo.total_respostas', 5);
-    
+
     $percentual = $response->json('data.desempenho.resumo.percentual_acerto');
     expect($percentual)->toBeIn([100, 100.0]);
 });

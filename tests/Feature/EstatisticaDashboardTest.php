@@ -77,9 +77,9 @@ class EstatisticaDashboardTest extends TestCase
             ->getJson('/api/estatisticas/dashboard');
 
         $response->assertStatus(200);
-        
+
         $data = $response->json('data.resumo');
-        
+
         $this->assertEquals(10, $data['total_questoes_respondidas']);
         $this->assertEquals(7, $data['total_acertos']);
         $this->assertEquals(3, $data['total_erros']);
@@ -95,9 +95,9 @@ class EstatisticaDashboardTest extends TestCase
             ->getJson('/api/estatisticas/dashboard');
 
         $response->assertStatus(200);
-        
+
         $percentual = $response->json('data.resumo.percentual_acerto');
-        
+
         $this->assertEquals(75.00, $percentual);
     }
 
@@ -131,9 +131,9 @@ class EstatisticaDashboardTest extends TestCase
         // PROBLEMA IDENTIFICADO: distinct('simulado_id')->count('simulado_id')
         // pode não funcionar corretamente em todos os bancos de dados
         $totalSimulados = $response->json('data.resumo.total_simulados');
-        
+
         // Deve ser 3 simulados únicos
-        $this->assertEquals(3, $totalSimulados, 
+        $this->assertEquals(3, $totalSimulados,
             "Total de simulados deveria ser 3, mas retornou {$totalSimulados}");
     }
 
@@ -153,7 +153,7 @@ class EstatisticaDashboardTest extends TestCase
             'correta' => true,
             'tempo_resposta' => 30,
         ]);
-        
+
         RespostaUsuario::create([
             'user_id' => $this->user->id,
             'questao_id' => $questao->id,
@@ -162,7 +162,7 @@ class EstatisticaDashboardTest extends TestCase
             'correta' => true,
             'tempo_resposta' => 60,
         ]);
-        
+
         RespostaUsuario::create([
             'user_id' => $this->user->id,
             'questao_id' => $questao->id,
@@ -176,9 +176,9 @@ class EstatisticaDashboardTest extends TestCase
             ->getJson('/api/estatisticas/dashboard');
 
         $response->assertStatus(200);
-        
+
         $tempoMedio = $response->json('data.resumo.tempo_medio_resposta');
-        
+
         $this->assertEquals(60.00, $tempoMedio);
     }
 
@@ -210,9 +210,9 @@ class EstatisticaDashboardTest extends TestCase
             ->getJson('/api/estatisticas/dashboard');
 
         $response->assertStatus(200);
-        
+
         $melhorSimulado = $response->json('data.melhor_simulado');
-        
+
         $this->assertNotNull($melhorSimulado);
         $this->assertEquals($simulado3->id, $melhorSimulado['simulado_id']);
         $this->assertEquals('Simulado Excelente', $melhorSimulado['simulado_titulo']);
@@ -229,7 +229,7 @@ class EstatisticaDashboardTest extends TestCase
             'user_id' => $this->user->id,
             'titulo' => 'Simulado Antigo',
         ]);
-        
+
         $simulado2 = Simulado::create([
             'user_id' => $this->user->id,
             'titulo' => 'Simulado Recente',
@@ -237,10 +237,10 @@ class EstatisticaDashboardTest extends TestCase
 
         // Criar respostas para simulado antigo
         $this->criarRespostasUsuario(5, 3, $simulado1->id);
-        
+
         // Aguardar 1 segundo para garantir diferença de tempo
         sleep(1);
-        
+
         // Criar respostas para simulado recente
         $this->criarRespostasUsuario(5, 4, $simulado2->id);
 
@@ -248,9 +248,9 @@ class EstatisticaDashboardTest extends TestCase
             ->getJson('/api/estatisticas/dashboard');
 
         $response->assertStatus(200);
-        
+
         $ultimoSimulado = $response->json('data.ultimo_simulado');
-        
+
         $this->assertNotNull($ultimoSimulado);
         $this->assertEquals($simulado2->id, $ultimoSimulado['simulado_id']);
         $this->assertEquals('Simulado Recente', $ultimoSimulado['simulado_titulo']);
@@ -294,9 +294,9 @@ class EstatisticaDashboardTest extends TestCase
             ->getJson('/api/estatisticas/dashboard');
 
         $response->assertStatus(200);
-        
+
         $sequencia = $response->json('data.resumo.sequencia_acertos');
-        
+
         // Deve ser 3 (últimas 3 respostas foram acertos)
         $this->assertEquals(3, $sequencia);
     }
@@ -308,7 +308,7 @@ class EstatisticaDashboardTest extends TestCase
         for ($i = 0; $i < 3; $i++) {
             $questao = $this->criarQuestao();
             $alternativa = $questao->alternativas->first();
-            
+
             // 5 questões por dia, 3 acertos
             for ($j = 0; $j < 5; $j++) {
                 $resposta = new RespostaUsuario([
@@ -328,12 +328,12 @@ class EstatisticaDashboardTest extends TestCase
             ->getJson('/api/estatisticas/dashboard');
 
         $response->assertStatus(200);
-        
+
         $evolucao = $response->json('data.evolucao_7_dias');
-        
+
         $this->assertIsArray($evolucao);
         $this->assertCount(3, $evolucao); // 3 dias com respostas
-        
+
         // Verificar estrutura de cada dia
         foreach ($evolucao as $dia) {
             $this->assertArrayHasKey('data', $dia);
@@ -348,11 +348,11 @@ class EstatisticaDashboardTest extends TestCase
     {
         // Criar outro usuário
         $outroUsuario = User::factory()->create();
-        
+
         // Criar respostas para o outro usuário
         $questao = $this->criarQuestao();
         $alternativa = $questao->alternativas->first();
-        
+
         RespostaUsuario::create([
             'user_id' => $outroUsuario->id,
             'questao_id' => $questao->id,
@@ -367,9 +367,9 @@ class EstatisticaDashboardTest extends TestCase
             ->getJson('/api/estatisticas/dashboard');
 
         $response->assertStatus(200);
-        
+
         $data = $response->json('data.resumo');
-        
+
         // Deve retornar 0 questões, não deve contar as do outro usuário
         $this->assertEquals(0, $data['total_questoes_respondidas']);
     }
@@ -382,11 +382,11 @@ class EstatisticaDashboardTest extends TestCase
     private function criarRespostasUsuario(int $total, int $acertos, ?int $simuladoId = null)
     {
         $simuladoId = $simuladoId ?? $this->simulado->id;
-        
+
         for ($i = 0; $i < $total; $i++) {
             $questao = $this->criarQuestao();
             $alternativa = $questao->alternativas->first();
-            
+
             RespostaUsuario::create([
                 'user_id' => $this->user->id,
                 'questao_id' => $questao->id,

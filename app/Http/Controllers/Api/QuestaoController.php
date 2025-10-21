@@ -58,7 +58,7 @@ class QuestaoController extends Controller
         // Adicionar informações de resposta a cada questão
         $questoesComInfo = $questoes->map(function ($questao) use ($questoesRespondidas) {
             $questaoArray = $questao->toArray();
-            
+
             if ($questoesRespondidas->has($questao->id)) {
                 $info = $questoesRespondidas->get($questao->id);
                 $questaoArray['foi_respondida'] = true;
@@ -69,7 +69,7 @@ class QuestaoController extends Controller
                 $questaoArray['total_respostas'] = 0;
                 $questaoArray['ultima_resposta'] = null;
             }
-            
+
             return $questaoArray;
         });
 

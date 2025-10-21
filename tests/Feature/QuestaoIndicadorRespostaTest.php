@@ -10,7 +10,7 @@ use Laravel\Sanctum\Sanctum;
 beforeEach(function () {
     $this->user = User::factory()->create(['creditos' => 100]);
     Sanctum::actingAs($this->user);
-    
+
     $this->tema = Tema::create([
         'nome' => 'Tema Teste',
         'descricao' => 'Tema para teste',
@@ -70,7 +70,7 @@ test('questões respondidas mostram foi_respondida como true', function () {
         ->assertJsonPath('success', true)
         ->assertJsonPath('data.0.foi_respondida', true)
         ->assertJsonPath('data.0.total_respostas', 1);
-    
+
     // Verificar que ultima_resposta não é null
     expect($response->json('data.0.ultima_resposta'))->not->toBeNull();
 });
@@ -128,7 +128,7 @@ test('questões com múltiplas respostas mostram contagem correta', function () 
         ->assertJsonPath('success', true)
         ->assertJsonPath('data.0.foi_respondida', true)
         ->assertJsonPath('data.0.total_respostas', 3);
-    
+
     // Verificar que a última resposta é a mais recente
     $ultimaRespostaRetornada = $response->json('data.0.ultima_resposta');
     expect($ultimaRespostaRetornada)->not->toBeNull();
@@ -200,7 +200,7 @@ test('listagem mista mostra status correto para cada questão', function () {
 
     $response->assertStatus(200)
         ->assertJsonPath('success', true);
-    
+
     $questoes = $response->json('data');
     expect($questoes)->toHaveCount(3);
 
@@ -244,7 +244,7 @@ test('usuários diferentes não veem respostas uns dos outros', function () {
 
     // Criar usuário 2
     $user2 = User::factory()->create(['creditos' => 100]);
-    
+
     // Criar questão do usuário 2 (mesma questão, mas dele)
     $questao2 = Questao::create([
         'user_id' => $user2->id,
@@ -266,10 +266,10 @@ test('usuários diferentes não veem respostas uns dos outros', function () {
     $response = $this->getJson('/api/questoes');
 
     $response->assertStatus(200);
-    
+
     $questoes = $response->json('data');
     expect($questoes)->toHaveCount(1);
-    
+
     // A questão do usuário 2 não deve mostrar como respondida
     expect($questoes[0]['foi_respondida'])->toBeFalse();
     expect($questoes[0]['total_respostas'])->toBe(0);
@@ -305,14 +305,14 @@ test('indicador funciona com paginação', function () {
     // Primeira página (15 itens)
     $response1 = $this->getJson('/api/questoes?per_page=15');
     $response1->assertStatus(200);
-    
+
     $questoesPagina1 = $response1->json('data');
     expect($questoesPagina1)->toHaveCount(15);
 
     // Segunda página (5 itens)
     $response2 = $this->getJson('/api/questoes?per_page=15&page=2');
     $response2->assertStatus(200);
-    
+
     $questoesPagina2 = $response2->json('data');
     expect($questoesPagina2)->toHaveCount(5);
 

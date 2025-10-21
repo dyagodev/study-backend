@@ -303,7 +303,7 @@ class RespostaAvulsaTest extends TestCase
 
         // Verificar que não criou simulado
         $this->assertDatabaseCount('simulados', 0);
-        
+
         // Verificar que não criou tentativa
         $this->assertDatabaseCount('simulado_tentativas', 0);
 

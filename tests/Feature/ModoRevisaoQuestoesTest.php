@@ -10,7 +10,7 @@ use Laravel\Sanctum\Sanctum;
 beforeEach(function () {
     $this->user = User::factory()->create(['creditos' => 100]);
     Sanctum::actingAs($this->user);
-    
+
     $this->tema = Tema::create([
         'nome' => 'Português',
         'descricao' => 'Questões de português',
@@ -116,7 +116,7 @@ test('permite incluir questões já respondidas com flag', function () {
         ->assertJsonPath('data.ja_respondida', true)
         ->assertJsonPath('data.modo_revisao', true)
         ->assertJsonPath('data.total_disponiveis', 2);
-    
+
     // Verificar se retornou uma das questões respondidas
     $questaoRetornada = $response2->json('data.questao.id');
     expect($questaoRetornada)->toBeIn([$questoes[0]->id, $questoes[1]->id]);
@@ -460,10 +460,10 @@ test('campo ja_respondida indica corretamente status da questão', function () {
     ]);
 
     $response2->assertStatus(200);
-    
+
     $questaoRetornada = $response2->json('data.questao.id');
     $jaRespondida = $response2->json('data.ja_respondida');
-    
+
     if ($questaoRetornada === $questao1->id) {
         expect($jaRespondida)->toBeTrue();
     } else {
@@ -498,7 +498,7 @@ test('mensagem personalizada quando modo revisão ativo e sem questões', functi
 
     $response->assertStatus(404)
         ->assertJsonPath('data.modo_revisao_ativo', true);
-    
+
     $mensagem = $response->json('message');
     expect($mensagem)->toContain('incluindo as revisadas');
 });

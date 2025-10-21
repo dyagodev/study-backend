@@ -37,7 +37,7 @@ class QuestaoIsolamentoTest extends TestCase
     {
         // Criar questões para usuário 1
         $questao1 = $this->criarQuestao($this->usuario1, 'Questão do Usuário 1');
-        
+
         // Criar questões para usuário 2
         $questao2 = $this->criarQuestao($this->usuario2, 'Questão do Usuário 2');
 
@@ -46,12 +46,12 @@ class QuestaoIsolamentoTest extends TestCase
             ->getJson('/api/questoes');
 
         $response->assertStatus(200);
-        
+
         $questoes = $response->json('data');
-        
+
         // Deve ter apenas 1 questão
         $this->assertCount(1, $questoes);
-        
+
         // Deve ser a questão do usuário 1
         $this->assertEquals($questao1->id, $questoes[0]['id']);
         $this->assertEquals($this->usuario1->id, $questoes[0]['user_id']);
@@ -62,7 +62,7 @@ class QuestaoIsolamentoTest extends TestCase
     {
         // Usuário 1: questão com palavra "Laravel"
         $questao1 = $this->criarQuestao($this->usuario1, 'O que é Laravel?');
-        
+
         // Usuário 2: questão com palavra "Laravel"
         $questao2 = $this->criarQuestao($this->usuario2, 'Laravel é um framework?');
 
@@ -71,12 +71,12 @@ class QuestaoIsolamentoTest extends TestCase
             ->getJson('/api/questoes?busca=Laravel');
 
         $response->assertStatus(200);
-        
+
         $questoes = $response->json('data');
-        
+
         // Deve retornar apenas 1 questão
         $this->assertCount(1, $questoes, 'Busca retornou questões de outros usuários!');
-        
+
         // Deve ser a questão do usuário 1
         $this->assertEquals($questao1->id, $questoes[0]['id']);
         $this->assertEquals($this->usuario1->id, $questoes[0]['user_id']);
@@ -95,9 +95,9 @@ class QuestaoIsolamentoTest extends TestCase
             ->getJson("/api/questoes?tema_id={$this->tema->id}");
 
         $response->assertStatus(200);
-        
+
         $questoes = $response->json('data');
-        
+
         // Deve retornar apenas questões do usuário 1
         $this->assertCount(1, $questoes);
         $this->assertEquals($questao1->id, $questoes[0]['id']);
@@ -116,9 +116,9 @@ class QuestaoIsolamentoTest extends TestCase
             ->getJson('/api/questoes?nivel=facil');
 
         $response->assertStatus(200);
-        
+
         $questoes = $response->json('data');
-        
+
         // Deve retornar apenas questões do usuário 1
         $this->assertCount(1, $questoes);
         $this->assertEquals($questao1->id, $questoes[0]['id']);
@@ -137,9 +137,9 @@ class QuestaoIsolamentoTest extends TestCase
             ->getJson('/api/questoes?favoritas=1');
 
         $response->assertStatus(200);
-        
+
         $questoes = $response->json('data');
-        
+
         // Deve retornar apenas questões do usuário 1
         $this->assertCount(1, $questoes);
         $this->assertEquals($questao1->id, $questoes[0]['id']);
@@ -158,9 +158,9 @@ class QuestaoIsolamentoTest extends TestCase
             ->getJson('/api/questoes?busca=PHP&nivel=facil');
 
         $response->assertStatus(200);
-        
+
         $questoes = $response->json('data');
-        
+
         // Deve retornar apenas 1 questão do usuário 1
         $this->assertCount(1, $questoes);
         $this->assertEquals($questao1->id, $questoes[0]['id']);
